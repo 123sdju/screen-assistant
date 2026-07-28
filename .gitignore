@@ -1,0 +1,57 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Flutter / Android / Gradle
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+**/build/
+**/.gradle/
+**/local.properties
+**/key.properties
+*.jks
+*.keystore
+.android/
+
+# Packaged artifacts and local release staging
+**/dist/
+release/
+*.exe
+*.apk
+*.aab
+
+# Runtime configuration, secrets, history, screenshots and databases
+config.json
+**/config.json
+!**/config.example.json
+data/
+**/data/
+*.db
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+screenshots/
+*.token
+.env
+.env.*
+!.env.example
+*.pem
+*.p12
+*.key
+
+# Logs, temporary files and editor metadata
+*.log
+*.tmp
+*.bak
+*.swp
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db

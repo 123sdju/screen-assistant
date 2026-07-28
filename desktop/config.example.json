@@ -1,0 +1,45 @@
+{
+  "version": 1,
+  "lan": {
+    "host": "0.0.0.0",
+    "port": 18765,
+    "enabled": true,
+    "advertise_address": ""
+  },
+  "ui": {
+    "close_mode": "tray"
+  },
+  "replay": {
+    "fast_mode": false,
+    "chars_per_second": 12,
+    "jitter_percent": 15
+  },
+  "storage": {
+    "history_dir": ""
+  },
+  "models": [
+    {
+      "id": "replace-with-unique-id",
+      "name": "OpenAI Compatible",
+      "base_url": "https://api.example.com/v1",
+      "api_key": "",
+      "model": "your-model-name",
+      "timeout_seconds": 120,
+      "max_tokens": 2048
+    }
+  ],
+  "profiles": [
+    {
+      "id": "replace-with-unique-profile-id",
+      "name": "Default",
+      "model_id": "replace-with-unique-id",
+      "system_prompt": "",
+      "prompt_template": "请分析这些截图并给出清晰、可执行的回答。",
+      "language": "auto",
+      "extra_body_enabled": false,
+      "extra_body": {}
+    }
+  ],
+  "active_profile_id": "replace-with-unique-profile-id",
+  "paired_devices": []
+}
