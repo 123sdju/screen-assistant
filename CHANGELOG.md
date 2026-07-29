@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.1.0 (2026-07-30)
+
+- Added exact full-endpoint URL mode alongside API-root and automatic URL handling.
+- Added Chat Completions and Responses protocol selection for arbitrary provider endpoints.
+- Added Linux desktop platform backends, CI packaging, and tagged-release artifacts.
+- Added full-width, soft-wrapped code blocks in the Android result view.
+
 ## 1.0.0 (2026-07-29)
 
 - Portable Windows desktop client with local OpenAI-compatible model connections and configurable reasoning effort.

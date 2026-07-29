@@ -2,6 +2,7 @@
 __pycache__/
 *.py[cod]
 .venv/
+.venv-linux/
 .pytest_cache/
 .coverage
 htmlcov/
@@ -25,6 +26,7 @@ release/
 *.exe
 *.apk
 *.aab
+*.tar.gz
 
 # Runtime configuration, secrets, history, screenshots and databases
 config.json

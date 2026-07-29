@@ -1,15 +1,18 @@
 from __future__ import annotations
 
 import os
+import sys
 import time
 from datetime import datetime
 from pathlib import Path
 from typing import TypeAlias
 from types import SimpleNamespace
 
-from PIL import Image
+from PIL import Image, ImageGrab
 
 try:
+    if sys.platform != "win32":
+        raise ImportError
     import dxcam  # type: ignore[import-not-found]
 except ImportError:  # pragma: no cover - exercised via runtime dependency checks
     dxcam = SimpleNamespace(create=None)
@@ -25,7 +28,7 @@ MAX_CAPTURE_AGE_DAYS = 30
 
 
 def capture_fullscreen(output_dir: Path) -> Path:
-    image = _grab_dxgi_image()
+    image = _grab_platform_image()
     return _save_capture(output_dir, image)
 
 
@@ -40,7 +43,7 @@ def normalize_bbox(first_point: Point, second_point: Point) -> BBox | None:
 
 
 def capture_region(output_dir: Path, bbox: BBox) -> Path:
-    image = _grab_dxgi_image(bbox)
+    image = _grab_platform_image(bbox)
     return _save_capture(output_dir, image)
 
 
@@ -97,3 +100,15 @@ def _grab_dxgi_image(region: BBox | None = None) -> Image.Image:
         if frame is None:
             raise RuntimeError("DXGI capture did not return a frame.")
     return Image.fromarray(frame)
+
+
+def _grab_platform_image(region: BBox | None = None) -> Image.Image:
+    if sys.platform == "win32":
+        return _grab_dxgi_image(region)
+    try:
+        return ImageGrab.grab(bbox=region, all_screens=True)
+    except Exception as exc:
+        raise RuntimeError(
+            "Linux 截图失败。X11 请安装 gnome-screenshot；"
+            "Wayland 请确认桌面门户或 grim/spectacle 可用。"
+        ) from exc

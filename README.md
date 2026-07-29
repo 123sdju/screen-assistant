@@ -2,12 +2,13 @@
 
 [简体中文](README.zh-CN.md)
 
-Screen Assistant is a serverless Windows screenshot assistant with an Android LAN companion App. The Windows client captures and previews screenshots, calls an OpenAI-compatible model directly, stores optional local history, and hosts an embedded authenticated LAN gateway. No PostgreSQL, account service, billing backend, or separately deployed server is required.
+Screen Assistant is a serverless Windows/Linux screenshot assistant with an Android LAN companion App. The desktop client captures and previews screenshots, calls an OpenAI-compatible model directly, stores optional local history, and hosts an embedded authenticated LAN gateway. No PostgreSQL, account service, billing backend, or separately deployed server is required.
 
 ## Highlights
 
 - Full-screen, region, and multi-image capture with desktop preview.
-- Multiple OpenAI-compatible model connections and reusable prompt profiles.
+- Multiple OpenAI-compatible model connections using either Chat Completions or Responses, with API-root and full-endpoint URL support.
+- Exact full-endpoint mode sends requests to an arbitrary URL without changing its path or query string.
 - Per-model reasoning effort with automatic omission or standard reasoning levels.
 - Optional `extra_body` JSON passed unchanged to compatible providers.
 - Configurable global shortcuts with conflict detection and Esc cancellation.
@@ -15,6 +16,7 @@ Screen Assistant is a serverless Windows screenshot assistant with an Android LA
 - Android pairing through mDNS discovery, QR code, or manual LAN address.
 - SSE streaming for thinking, results, task state, profiles, and buffer changes.
 - Result-view font scaling that leaves navigation and status UI unchanged.
+- Full-width, soft-wrapped Markdown code blocks in portrait and landscape, without horizontal reading scroll.
 - Desktop shortcuts can page and resize text on every connected App currently showing the result page.
 - One App can page results on other Apps connected to the same desktop.
 - Model and profile editing from the App; existing API keys are never returned over LAN.
@@ -24,16 +26,17 @@ Screen Assistant is a serverless Windows screenshot assistant with an Android LA
 Download the latest files from [GitHub Releases](../../releases/latest):
 
 - `ScreenAssistant-Windows-x64.exe` — portable Windows desktop client.
+- `ScreenAssistant-Linux-x86_64.tar.gz` — portable Linux x86_64 desktop client.
 - `ScreenAssistant-Android.apk` — Android ARM release App.
 - `SHA256SUMS.txt` — SHA-256 checksums for both artifacts.
 
-Place the EXE in its own writable directory and run it. Windows may show a SmartScreen warning because community builds are not code-signed. On Android, allow installation from the browser or file manager used to open the APK.
+Place the desktop executable in its own writable directory. Windows may show a SmartScreen warning because community builds are not code-signed. For Linux installation and platform notes, see [Linux desktop](docs/linux.md). On Android, allow installation from the browser or file manager used to open the APK.
 
 Both sides must use the same release version when protocol features change.
 
 ## First-time setup
 
-1. Open **Model connections** on Windows and enter the provider Base URL, API Key, model name, optional reasoning effort, and total request timeout.
+1. Open **Model connections** on the desktop and enter the provider URL, URL mode, API format, API Key, model name, optional reasoning effort, and total request timeout. Exact full-endpoint mode preserves arbitrary paths and query strings.
 2. Open **Profiles** and configure the system prompt, user prompt, and optional `extra_body`.
 3. Open **LAN & pairing**, generate a six-digit code/QR code, and keep the desktop running.
 4. Connect the phone to the same trusted Wi-Fi, then discover, scan, or enter `http://<desktop-lan-ip>:18765`.
@@ -76,7 +79,7 @@ The vendored `mobile_scanner` dependency remains under its original BSD-3-Clause
 
 Requirements:
 
-- Windows 10/11 and Python 3.11+ for the desktop client.
+- Windows 10/11 or an x86_64 Linux desktop, plus Python 3.11+ for desktop development.
 - Flutter stable 3.29+, Android SDK, and JDK 17 for the Android App.
 - PowerShell 5.1+.
 
@@ -101,21 +104,29 @@ Build release artifacts:
 ```powershell
 .\scripts\build-desktop.ps1
 .\scripts\build-apk.ps1
-.\scripts\package-release.ps1 -Version 1.0.0
+.\scripts\package-release.ps1 -Version 1.1.0
+```
+
+On Linux:
+
+```bash
+bash scripts/build-linux.sh
 ```
 
 Outputs are intentionally ignored by Git:
 
 - `desktop/dist/ScreenAssistant.exe`
 - `mobile/build/app/outputs/flutter-apk/app-release.apk`
-- `release/v1.0.0/`
+- `release/linux/ScreenAssistant-Linux-x86_64.tar.gz`
+- `release/v1.1.0/`
 
 ## Documentation
 
 - [Architecture](docs/architecture.md)
 - [Configuration and data](docs/configuration.md)
 - [LAN protocol](docs/protocol.md)
-- [v1.0.0 manual test checklist](docs/manual-test-v1.0.0.md)
+- [Linux desktop](docs/linux.md)
+- [v1.1.0 manual test checklist](docs/manual-test-v1.1.0.md)
 - [Changelog](CHANGELOG.md)
 
 ## License

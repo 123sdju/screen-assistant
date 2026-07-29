@@ -8,8 +8,10 @@ import pytest
 
 from app.config import (
     ConfigStore,
+    normalize_api_mode,
     normalize_base_url,
     normalize_reasoning_effort,
+    normalize_url_mode,
     normalize_remote_settings,
     parse_extra_body,
     public_remote_settings,
@@ -97,6 +99,28 @@ def test_base_url_adds_v1_only_when_no_path_was_supplied() -> None:
     assert normalize_base_url("https://api.example.com") == "https://api.example.com/v1"
     assert normalize_base_url("https://api.example.com/v1/") == "https://api.example.com/v1"
     assert normalize_base_url("https://api.example.com/openai") == "https://api.example.com/openai"
+
+
+def test_api_mode_migrates_to_auto_and_validates_values() -> None:
+    with tempfile.TemporaryDirectory(dir=Path.cwd()) as folder:
+        path = Path(folder) / "config.json"
+        path.write_text(json.dumps({"models": [{"id": "m"}]}), encoding="utf-8")
+        assert ConfigStore(path).data["models"][0]["api_mode"] == "auto"
+    for mode in ("auto", "chat_completions", "responses"):
+        assert normalize_api_mode(mode) == mode
+    with pytest.raises(ValueError, match="接口格式"):
+        normalize_api_mode("legacy")
+
+
+def test_url_mode_migrates_to_auto_and_validates_values() -> None:
+    with tempfile.TemporaryDirectory(dir=Path.cwd()) as folder:
+        path = Path(folder) / "config.json"
+        path.write_text(json.dumps({"models": [{"id": "m"}]}), encoding="utf-8")
+        assert ConfigStore(path).data["models"][0]["url_mode"] == "auto"
+    for mode in ("auto", "api_root", "full_endpoint"):
+        assert normalize_url_mode(mode) == mode
+    with pytest.raises(ValueError, match="URL 模式"):
+        normalize_url_mode("custom")
 
 
 def test_remote_settings_never_return_api_key_and_keep_or_replace_it() -> None:

@@ -38,6 +38,8 @@ DEFAULT_SHORTCUTS = {
 }
 
 REASONING_EFFORTS = {"", "none", "minimal", "low", "medium", "high", "xhigh", "max"}
+API_MODES = {"auto", "chat_completions", "responses"}
+URL_MODES = {"auto", "api_root", "full_endpoint"}
 
 
 def normalize_base_url(value: Any) -> str:
@@ -91,6 +93,8 @@ def default_config() -> dict[str, Any]:
                 "timeout_seconds": 120,
                 "max_tokens": 2048,
                 "reasoning_effort": "",
+                "api_mode": "auto",
+                "url_mode": "auto",
             }
         ],
         "profiles": [
@@ -197,6 +201,20 @@ def normalize_reasoning_effort(value: Any) -> str:
     return effort
 
 
+def normalize_api_mode(value: Any) -> str:
+    mode = str(value or "auto").strip().lower()
+    if mode not in API_MODES:
+        raise ValueError("接口格式必须为自动、Chat Completions 或 Responses")
+    return mode
+
+
+def normalize_url_mode(value: Any) -> str:
+    mode = str(value or "auto").strip().lower()
+    if mode not in URL_MODES:
+        raise ValueError("URL 模式必须为自动识别、API 根地址或完整端点 URL")
+    return mode
+
+
 def validate_reasoning_extra_body(
     model: dict[str, Any],
     profile: dict[str, Any],
@@ -222,6 +240,8 @@ def public_remote_settings(data: dict[str, Any]) -> dict[str, Any]:
                 "timeout_seconds": item["timeout_seconds"],
                 "max_tokens": item["max_tokens"],
                 "reasoning_effort": normalize_reasoning_effort(item.get("reasoning_effort")),
+                "api_mode": normalize_api_mode(item.get("api_mode")),
+                "url_mode": normalize_url_mode(item.get("url_mode")),
                 "api_key_configured": bool(item.get("api_key")),
             }
         )
@@ -275,6 +295,8 @@ def normalize_remote_settings(
                 "timeout_seconds": max(5, min(int(raw.get("timeout_seconds") or 120), 600)),
                 "max_tokens": max(1, min(int(raw.get("max_tokens") or 2048), 131072)),
                 "reasoning_effort": normalize_reasoning_effort(raw.get("reasoning_effort")),
+                "api_mode": normalize_api_mode(raw.get("api_mode")),
+                "url_mode": normalize_url_mode(raw.get("url_mode")),
             }
         )
 
@@ -342,6 +364,8 @@ def _sanitize_models(raw: Any, fallback: list[dict[str, Any]]) -> list[dict[str,
                 "timeout_seconds": max(5, min(int(item.get("timeout_seconds") or 120), 600)),
                 "max_tokens": max(1, min(int(item.get("max_tokens") or 2048), 131072)),
                 "reasoning_effort": _sanitize_reasoning_effort(item.get("reasoning_effort")),
+                "api_mode": _sanitize_api_mode(item.get("api_mode")),
+                "url_mode": _sanitize_url_mode(item.get("url_mode")),
             }
         )
     return result or deepcopy(fallback)
@@ -352,6 +376,20 @@ def _sanitize_reasoning_effort(value: Any) -> str:
         return normalize_reasoning_effort(value)
     except ValueError:
         return ""
+
+
+def _sanitize_api_mode(value: Any) -> str:
+    try:
+        return normalize_api_mode(value)
+    except ValueError:
+        return "auto"
+
+
+def _sanitize_url_mode(value: Any) -> str:
+    try:
+        return normalize_url_mode(value)
+    except ValueError:
+        return "auto"
 
 
 def _sanitize_profiles(raw: Any, models: list[dict[str, Any]], fallback: list[dict[str, Any]]) -> list[dict[str, Any]]:

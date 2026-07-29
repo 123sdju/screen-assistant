@@ -1,6 +1,13 @@
+import sys
+
 from PyInstaller.utils.hooks import collect_submodules
 
-hiddenimports = collect_submodules("dxcam") + [
+platform_hiddenimports = (
+    collect_submodules("dxcam")
+    if sys.platform == "win32"
+    else ["pynput.keyboard._xorg", "pynput._util.xorg"]
+)
+hiddenimports = platform_hiddenimports + [
     "uvicorn.lifespan.on",
     "uvicorn.protocols.http.h11_impl",
     "uvicorn.protocols.websockets.websockets_impl",

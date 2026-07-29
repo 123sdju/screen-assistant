@@ -1,4 +1,9 @@
+import sys
+
 import pytest
+
+if sys.platform != "win32":
+    pytest.skip("Windows low-level input hook tests", allow_module_level=True)
 
 from PySide6.QtCore import Qt
 from PySide6.QtTest import QTest

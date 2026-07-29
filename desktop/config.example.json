@@ -24,8 +24,11 @@
       "base_url": "https://api.example.com/v1",
       "api_key": "",
       "model": "your-model-name",
+      "api_mode": "auto",
+      "url_mode": "auto",
       "timeout_seconds": 120,
-      "max_tokens": 2048
+      "max_tokens": 2048,
+      "reasoning_effort": ""
     }
   ],
   "profiles": [

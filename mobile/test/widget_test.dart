@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
@@ -120,6 +121,44 @@ void main() {
     );
   });
 
+  testWidgets('long code blocks wrap to the available landscape width', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1200, 600);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 900,
+            child: MarkdownBody(
+              data:
+                  '```python\n'
+                  'result = some_function_with_a_very_long_name('
+                  'first_argument, second_argument, third_argument)\n'
+                  '```',
+              builders: <String, MarkdownElementBuilder>{
+                'pre': WrappingCodeBlockBuilder(),
+              },
+            ),
+          ),
+        ),
+      ),
+    );
+    final code = find.byKey(const ValueKey<String>('wrapping-code-block'));
+    expect(code, findsOneWidget);
+    expect(tester.getSize(code).width, lessThanOrEqualTo(900));
+    final text = tester.widget<Text>(find.descendant(of: code, matching: find.byType(Text)));
+    expect(text.softWrap, isTrue);
+    expect(
+      find.descendant(of: code, matching: find.byType(SingleChildScrollView)),
+      findsNothing,
+    );
+  });
+
   test('uses a DNS-SD service label within the protocol limit', () {
     expect(DesktopDiscovery.serviceType, '_screenasst._tcp.local');
     expect('screenasst'.codeUnits.length, lessThanOrEqualTo(15));
@@ -157,6 +196,8 @@ void main() {
                 'timeout_seconds': 120,
                 'max_tokens': 2048,
                 'reasoning_effort': 'high',
+                'api_mode': 'responses',
+                'url_mode': 'full_endpoint',
                 'api_key_configured': true,
               },
             ],
@@ -203,6 +244,8 @@ void main() {
     await tester.pumpAndSettle();
     expect(savedBody, contains('"models"'));
     expect(savedBody, contains('"reasoning_effort":"high"'));
+    expect(savedBody, contains('"api_mode":"responses"'));
+    expect(savedBody, contains('"url_mode":"full_endpoint"'));
     expect(savedBody, isNot(contains('sk-secret')));
     api.close();
   });
