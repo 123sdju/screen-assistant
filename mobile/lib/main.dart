@@ -5,6 +5,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:markdown/markdown.dart' as md;
 
 import 'api_client.dart';
 import 'discovery.dart';
@@ -37,6 +38,32 @@ String? lanAddressProblem(String value) {
     return '127.0.0.1/localhost 指向手机自身，不能用于连接电脑。请使用电脑的局域网 IP。';
   }
   return null;
+}
+
+class WrappingCodeBlockBuilder extends MarkdownElementBuilder {
+  @override
+  bool isBlockElement() => true;
+
+  @override
+  Widget? visitText(md.Text text, TextStyle? preferredStyle) {
+    return Container(
+      key: const ValueKey<String>('wrapping-code-block'),
+      width: double.infinity,
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: const Color(0x0D000000),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: SelectionArea(
+        child: Text(
+          text.text,
+          softWrap: true,
+          overflow: TextOverflow.visible,
+          style: preferredStyle,
+        ),
+      ),
+    );
+  }
 }
 
 double normalizedFontScale(String? value) {
@@ -826,7 +853,9 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
     ];
     return ListView(
       controller: _currentPageController,
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.all(
+        MediaQuery.orientationOf(context) == Orientation.landscape ? 8 : 12,
+      ),
       children: content,
     );
   }
@@ -836,14 +865,24 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
     return MediaQuery(
       data: media.copyWith(textScaler: resultTextScaler(widget.fontScale)),
       child: Card(
+        margin: const EdgeInsets.only(bottom: 8),
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(12),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(title, style: Theme.of(context).textTheme.titleMedium),
               const Divider(),
-              MarkdownBody(data: value, selectable: true),
+              SizedBox(
+                width: double.infinity,
+                child: MarkdownBody(
+                  data: value,
+                  selectable: true,
+                  builders: <String, MarkdownElementBuilder>{
+                    'pre': WrappingCodeBlockBuilder(),
+                  },
+                ),
+              ),
             ],
           ),
         ),

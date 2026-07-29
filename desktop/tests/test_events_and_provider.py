@@ -2,16 +2,20 @@ from __future__ import annotations
 
 from pathlib import Path
 import tempfile
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import httpx
 import pytest
+from openai import NotFoundError
 
 from app.ai_provider import (
     OpenAICompatibleProvider,
     ProviderError,
+    _extract_response_stream_text,
+    _extract_response_stream_thinking,
     _extract_stream_text,
     _extract_stream_thinking,
+    _resolve_endpoint,
     friendly_provider_error,
 )
 from app.events import EventHub, encode_sse
@@ -34,6 +38,39 @@ def test_stream_extracts_text_and_reasoning() -> None:
     payload = {"choices": [{"delta": {"content": "done", "reasoning_content": "step"}}]}
     assert _extract_stream_text(payload) == "done"
     assert _extract_stream_thinking(payload) == "step"
+    assert _extract_response_stream_text(
+        {"type": "response.output_text.delta", "delta": "answer"}
+    ) == "answer"
+    assert _extract_response_stream_thinking(
+        {"type": "response.reasoning_summary_text.delta", "delta": "reason"}
+    ) == "reason"
+
+
+@pytest.mark.parametrize(
+    ("entered", "root", "mode"),
+    [
+        ("https://api.example.com/v1", "https://api.example.com/v1", None),
+        (
+            "https://api.example.com/v1/chat/completions",
+            "https://api.example.com/v1",
+            "chat_completions",
+        ),
+        (
+            "https://api.example.com/chat/completions",
+            "https://api.example.com",
+            "chat_completions",
+        ),
+        (
+            "https://api.example.com/v1/responses",
+            "https://api.example.com/v1",
+            "responses",
+        ),
+    ],
+)
+def test_full_generation_endpoints_are_resolved_without_duplicate_paths(
+    entered: str, root: str, mode: str | None
+) -> None:
+    assert _resolve_endpoint(entered) == (root, mode)
 
 
 def test_total_request_timeout_has_a_clear_user_message() -> None:
@@ -85,7 +122,7 @@ def test_extra_body_and_reasoning_effort_are_forwarded_only_when_enabled() -> No
             assert "reasoning_effort" not in automatic.client.chat.completions.kwargs
 
 
-def test_connection_accepts_json_served_as_text_plain() -> None:
+def test_connection_validates_the_real_generation_endpoint() -> None:
     class FakeClient:
         def __init__(self, **_kwargs) -> None:
             pass
@@ -101,13 +138,13 @@ def test_connection_accepts_json_served_as_text_plain() -> None:
     }
     response = httpx.Response(
         200,
-        content=b'{"object":"list","data":[{"id":"vision"}]}',
+        content=b'{"choices":[{"message":{"content":"OK"}}]}',
         headers={"content-type": "text/plain"},
-        request=httpx.Request("GET", "http://local/v1/models"),
+        request=httpx.Request("POST", "http://local/v1/chat/completions"),
     )
-    with patch("app.ai_provider.OpenAI", FakeClient), patch("app.ai_provider.httpx.get", return_value=response):
+    with patch("app.ai_provider.OpenAI", FakeClient), patch("app.ai_provider.httpx.post", return_value=response):
         provider = OpenAICompatibleProvider(model)
-        assert provider.test_connection() == "连接成功，已找到模型 vision"
+        assert "Chat Completions" in provider.test_connection()
 
 
 def test_connection_falls_back_to_minimal_chat_when_models_is_not_json() -> None:
@@ -198,7 +235,226 @@ def test_connection_reports_authentication_error() -> None:
         json={"error": {"message": "invalid key"}},
         request=httpx.Request("GET", "http://local/v1/models"),
     )
-    with patch("app.ai_provider.OpenAI", FakeClient), patch("app.ai_provider.httpx.get", return_value=response):
+    with patch("app.ai_provider.OpenAI", FakeClient), patch("app.ai_provider.httpx.post", return_value=response):
         provider = OpenAICompatibleProvider(model)
         with pytest.raises(ProviderError, match="API Key"):
             provider.test_connection()
+
+
+def test_responses_endpoint_uses_multimodal_shape_and_stream_events() -> None:
+    class Responses:
+        def __init__(self) -> None:
+            self.kwargs = None
+
+        def create(self, **kwargs):
+            self.kwargs = kwargs
+            return [
+                {"type": "response.reasoning_summary_text.delta", "delta": "step"},
+                {"type": "response.output_text.delta", "delta": "done"},
+            ]
+
+    class FakeClient:
+        def __init__(self, **_kwargs) -> None:
+            self.responses = Responses()
+
+        def close(self) -> None:
+            pass
+
+    model = {
+        "base_url": "http://local/v1/responses",
+        "api_key": "key",
+        "model": "vision",
+        "reasoning_effort": "high",
+    }
+    with tempfile.TemporaryDirectory(dir=Path.cwd()) as folder:
+        image = Path(folder) / "x.png"
+        image.write_bytes(b"image")
+        with patch("app.ai_provider.OpenAI", FakeClient):
+            provider = OpenAICompatibleProvider(model)
+            chunks = list(
+                provider.stream_screenshot(
+                    {
+                        "system_prompt": "system",
+                        "prompt_template": "prompt",
+                        "extra_body_enabled": True,
+                        "extra_body": {"custom": True},
+                    },
+                    [image],
+                )
+            )
+        assert chunks == [("", "step"), ("done", "")]
+        kwargs = provider.client.responses.kwargs
+        assert kwargs["reasoning"] == {"effort": "high"}
+        assert kwargs["instructions"] == "system"
+        assert kwargs["extra_body"] == {"custom": True}
+        assert kwargs["input"][0]["content"][0] == {"type": "input_text", "text": "prompt"}
+        assert kwargs["input"][0]["content"][1]["type"] == "input_image"
+
+
+def test_responses_connection_test_uses_responses_url_and_payload() -> None:
+    class FakeClient:
+        def __init__(self, **_kwargs) -> None:
+            pass
+
+        def close(self) -> None:
+            pass
+
+    response = httpx.Response(
+        200,
+        json={"id": "resp_1", "output": []},
+        request=httpx.Request("POST", "http://local/v1/responses"),
+    )
+    model = {
+        "base_url": "http://local/v1/responses",
+        "api_key": "key",
+        "model": "vision",
+        "reasoning_effort": "low",
+    }
+    with (
+        patch("app.ai_provider.OpenAI", FakeClient),
+        patch("app.ai_provider.httpx.post", return_value=response) as post,
+    ):
+        provider = OpenAICompatibleProvider(model)
+        assert "Responses" in provider.test_connection()
+        assert post.call_args.args[0] == "http://local/v1/responses"
+        assert post.call_args.kwargs["json"]["reasoning"] == {"effort": "low"}
+
+
+def test_auto_mode_falls_back_from_missing_chat_endpoint_to_responses() -> None:
+    class FakeClient:
+        def __init__(self, **_kwargs) -> None:
+            pass
+
+        def close(self) -> None:
+            pass
+
+    missing_chat = httpx.Response(
+        404,
+        json={"error": {"message": "not found"}},
+        request=httpx.Request("POST", "http://local/v1/chat/completions"),
+    )
+    responses_ok = httpx.Response(
+        200,
+        json={"id": "resp_1", "output": []},
+        request=httpx.Request("POST", "http://local/v1/responses"),
+    )
+    model = {
+        "base_url": "http://local/v1",
+        "api_key": "key",
+        "model": "vision",
+        "api_mode": "auto",
+    }
+    with (
+        patch("app.ai_provider.OpenAI", FakeClient),
+        patch(
+            "app.ai_provider.httpx.post",
+            side_effect=[missing_chat, responses_ok],
+        ) as post,
+    ):
+        provider = OpenAICompatibleProvider(model)
+        assert "Responses" in provider.test_connection()
+        assert [call.args[0] for call in post.call_args_list] == [
+            "http://local/v1/chat/completions",
+            "http://local/v1/responses",
+        ]
+
+
+def test_stream_auto_mode_falls_back_only_before_any_content_was_emitted() -> None:
+    missing_response = httpx.Response(
+        404,
+        request=httpx.Request("POST", "http://local/v1/chat/completions"),
+    )
+
+    class Completions:
+        def create(self, **_kwargs):
+            raise NotFoundError("missing", response=missing_response, body=None)
+
+    class Responses:
+        def __init__(self) -> None:
+            self.called = False
+
+        def create(self, **_kwargs):
+            self.called = True
+            return [{"type": "response.output_text.delta", "delta": "fallback"}]
+
+    class FakeClient:
+        def __init__(self, **_kwargs) -> None:
+            self.chat = type("Chat", (), {"completions": Completions()})()
+            self.responses = Responses()
+
+        def close(self) -> None:
+            pass
+
+    with patch("app.ai_provider.OpenAI", FakeClient):
+        provider = OpenAICompatibleProvider(
+            {
+                "base_url": "http://local/v1",
+                "api_key": "key",
+                "model": "vision",
+                "api_mode": "auto",
+            }
+        )
+        chunks = list(
+            provider.stream_screenshot(
+                {"prompt_template": "prompt", "extra_body_enabled": False},
+                [],
+            )
+        )
+    assert chunks == [("fallback", "")]
+    assert provider.client.responses.called is True
+
+
+def test_full_endpoint_mode_posts_to_the_exact_custom_url() -> None:
+    class FakeClient:
+        def __init__(self, **_kwargs) -> None:
+            pass
+
+        def close(self) -> None:
+            pass
+
+    exact_url = "https://gateway.example.com/custom/generate?tenant=one"
+    response = httpx.Response(
+        200,
+        content=(
+            b'data: {"type":"response.output_text.delta","delta":"exact"}\n\n'
+            b"data: [DONE]\n\n"
+        ),
+        request=httpx.Request("POST", exact_url),
+    )
+    context = MagicMock()
+    context.__enter__.return_value = response
+    context.__exit__.return_value = False
+    with (
+        patch("app.ai_provider.OpenAI", FakeClient),
+        patch("app.ai_provider.httpx.stream", return_value=context) as stream,
+    ):
+        provider = OpenAICompatibleProvider(
+            {
+                "base_url": exact_url,
+                "url_mode": "full_endpoint",
+                "api_mode": "responses",
+                "api_key": "key",
+                "model": "vision",
+            }
+        )
+        chunks = list(
+            provider.stream_screenshot(
+                {"prompt_template": "prompt", "extra_body_enabled": False},
+                [],
+            )
+        )
+    assert chunks == [("exact", "")]
+    assert stream.call_args.args[:2] == ("POST", exact_url)
+
+
+def test_custom_full_endpoint_requires_an_explicit_api_format() -> None:
+    with pytest.raises(ProviderError, match="明确选择"):
+        OpenAICompatibleProvider(
+            {
+                "base_url": "https://gateway.example.com/custom/generate",
+                "url_mode": "full_endpoint",
+                "api_mode": "auto",
+                "api_key": "key",
+                "model": "vision",
+            }
+        )

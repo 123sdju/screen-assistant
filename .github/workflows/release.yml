@@ -1,0 +1,98 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: "pip"
+          cache-dependency-path: desktop/requirements-dev.txt
+      - name: Install and test
+        working-directory: desktop
+        shell: pwsh
+        run: |
+          python -m pip install -r requirements-dev.txt
+          $env:QT_QPA_PLATFORM = "offscreen"
+          python -m pytest -q
+          python -m PyInstaller ScreenAssistant.spec --clean --noconfirm
+          .\dist\ScreenAssistant.exe --self-test
+          Copy-Item .\dist\ScreenAssistant.exe .\dist\ScreenAssistant-Windows-x64.exe
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: desktop/dist/ScreenAssistant-Windows-x64.exe
+
+  linux:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: "pip"
+          cache-dependency-path: desktop/requirements-dev.txt
+      - name: Install runtime libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libegl1 libxkbcommon-x11-0 libxcb-cursor0 scrot
+      - name: Build and test
+        run: bash scripts/build-linux.sh
+      - name: Packaged self-test
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: desktop/dist/ScreenAssistant --self-test
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux
+          path: release/linux/ScreenAssistant-Linux-x86_64.tar.gz
+
+  android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Analyze, test, and build
+        working-directory: mobile
+        run: |
+          flutter pub get
+          flutter analyze
+          flutter test
+          flutter build apk --release --target-platform android-arm,android-arm64
+          cp build/app/outputs/flutter-apk/app-release.apk build/app/outputs/flutter-apk/ScreenAssistant-Android.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android
+          path: mobile/build/app/outputs/flutter-apk/ScreenAssistant-Android.apk
+
+  publish:
+    needs: [windows, linux, android]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+      - name: Generate checksums
+        working-directory: artifacts
+        run: sha256sum ScreenAssistant-* > SHA256SUMS.txt
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "${GITHUB_REF_NAME}" artifacts/* --generate-notes --verify-tag

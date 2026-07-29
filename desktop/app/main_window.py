@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import shutil
+import sys
 import tempfile
 import threading
 import uuid
@@ -42,11 +43,12 @@ from PySide6.QtWidgets import (
 
 from app.ai_provider import OpenAICompatibleProvider
 from app.capture import capture_fullscreen, capture_region, normalize_bbox
-from app.code_replay import KeyDrivenReplayController
 from app.config import (
     DEFAULT_SHORTCUTS,
     ConfigStore,
     normalize_base_url,
+    normalize_api_mode,
+    normalize_url_mode,
     normalize_reasoning_effort,
     normalize_remote_settings,
     parse_extra_body,
@@ -56,12 +58,19 @@ from app.config import (
 from app.discovery import DiscoveryPublisher, is_usable_lan_ipv4, local_ipv4
 from app.events import EventHub
 from app.gateway import GatewayApi, GatewayServer
-from app.global_hotkeys import GlobalHotkeyManager, validate_shortcuts
 from app.history import HistoryStore
 from app.pairing import PairingManager
-from app.region_capture import RegionCaptureManager
 from app.task_engine import TaskEngine
 from app.shortcut_edit import ShortcutCaptureEdit
+
+if sys.platform == "win32":
+    from app.code_replay import KeyDrivenReplayController
+    from app.global_hotkeys import GlobalHotkeyManager, validate_shortcuts
+    from app.region_capture import RegionCaptureManager
+else:
+    from app.code_replay_linux import KeyDrivenReplayController
+    from app.global_hotkeys_linux import GlobalHotkeyManager, validate_shortcuts
+    from app.region_capture_linux import RegionCaptureManager
 
 
 COMMANDS = {
@@ -214,6 +223,14 @@ class MainWindow(QMainWindow):
         layout.addLayout(replay_options)
         self.replay_status = QLabel("按键回放未启动：开始后，每按一次有效按键输出下一个字符，Esc停止")
         layout.addWidget(self.replay_status)
+        if sys.platform != "win32":
+            self.replay_button.setEnabled(False)
+            self.replay_fast_mode.setEnabled(False)
+            self.replay_speed.setEnabled(False)
+            self.replay_jitter.setEnabled(False)
+            self.replay_status.setText(
+                "Linux 首版暂不提供代码回放；截图、模型、历史和局域网功能可正常使用"
+            )
         buffer_splitter = QSplitter(Qt.Orientation.Horizontal)
         buffer_splitter.setMinimumHeight(190)
         buffer_splitter.setMaximumHeight(240)
@@ -271,6 +288,14 @@ class MainWindow(QMainWindow):
         self.model_max_tokens = QSpinBox()
         self.model_max_tokens.setRange(1, 131072)
         self.model_reasoning_effort = QComboBox()
+        self.model_api_mode = QComboBox()
+        self.model_api_mode.addItem("自动（根据完整 URL 检测，根地址优先 Chat）", "auto")
+        self.model_api_mode.addItem("Chat Completions", "chat_completions")
+        self.model_api_mode.addItem("Responses", "responses")
+        self.model_url_mode = QComboBox()
+        self.model_url_mode.addItem("自动识别", "auto")
+        self.model_url_mode.addItem("API 根地址（自动追加接口路径）", "api_root")
+        self.model_url_mode.addItem("完整端点 URL（原样请求）", "full_endpoint")
         for label, value in (
             ("自动（不发送）", ""),
             ("none", "none"),
@@ -285,6 +310,8 @@ class MainWindow(QMainWindow):
         for label, widget in (
             ("名称", self.model_name), ("Base URL", self.model_base_url), ("API Key", self.model_api_key),
             ("模型名", self.model_model),
+            ("URL 模式", self.model_url_mode),
+            ("接口格式", self.model_api_mode),
             ("请求总超时（思考 + 输出，秒）", self.model_timeout),
             ("Max Tokens", self.model_max_tokens),
             ("思考强度", self.model_reasoning_effort),
@@ -505,6 +532,10 @@ class MainWindow(QMainWindow):
         self.model_max_tokens.setValue(model["max_tokens"])
         effort_index = self.model_reasoning_effort.findData(model.get("reasoning_effort", ""))
         self.model_reasoning_effort.setCurrentIndex(max(0, effort_index))
+        mode_index = self.model_api_mode.findData(model.get("api_mode", "auto"))
+        self.model_api_mode.setCurrentIndex(max(0, mode_index))
+        url_mode_index = self.model_url_mode.findData(model.get("url_mode", "auto"))
+        self.model_url_mode.setCurrentIndex(max(0, url_mode_index))
 
     def _model_from_editor(self, original_id: str) -> dict[str, Any]:
         return {
@@ -513,6 +544,8 @@ class MainWindow(QMainWindow):
             "base_url": normalize_base_url(self.model_base_url.text()),
             "api_key": self.model_api_key.text().strip(),
             "model": self.model_model.text().strip(),
+            "api_mode": normalize_api_mode(self.model_api_mode.currentData()),
+            "url_mode": normalize_url_mode(self.model_url_mode.currentData()),
             "timeout_seconds": self.model_timeout.value(),
             "max_tokens": self.model_max_tokens.value(),
             "reasoning_effort": normalize_reasoning_effort(
@@ -521,7 +554,7 @@ class MainWindow(QMainWindow):
         }
 
     def add_model(self) -> None:
-        self.config.data["models"].append({"id": uuid.uuid4().hex, "name": "新模型", "base_url": "", "api_key": "", "model": "", "timeout_seconds": 120, "max_tokens": 2048, "reasoning_effort": ""})
+        self.config.data["models"].append({"id": uuid.uuid4().hex, "name": "新模型", "base_url": "", "api_key": "", "model": "", "timeout_seconds": 120, "max_tokens": 2048, "reasoning_effort": "", "api_mode": "auto", "url_mode": "auto"})
         self.config.save()
         self._reload_model_list()
         self.model_list.setCurrentRow(len(self.config.data["models"]) - 1)
@@ -700,7 +733,11 @@ class MainWindow(QMainWindow):
         if not self.region_capture.start():
             self._show_status("区域截图已经在进行中")
         else:
-            self._show_status("请点击两次选择区域，Esc 取消")
+            self._show_status(
+                "请拖动鼠标选择区域，Esc 取消"
+                if sys.platform != "win32"
+                else "请点击两次选择区域，Esc 取消"
+            )
 
     @Slot(object)
     def _region_selected(self, points: object) -> None:

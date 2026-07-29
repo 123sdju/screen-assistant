@@ -14,6 +14,8 @@ const reasoningEfforts = <String>[
   'xhigh',
   'max',
 ];
+const apiModes = <String>['auto', 'chat_completions', 'responses'];
+const urlModes = <String>['auto', 'api_root', 'full_endpoint'];
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key, required this.api});
@@ -116,6 +118,8 @@ class _SettingsPageState extends State<SettingsPage> {
             'timeout_seconds': 120,
             'max_tokens': 2048,
             'reasoning_effort': '',
+            'api_mode': 'auto',
+            'url_mode': 'auto',
             'api_key_configured': false,
           }
         : Map<String, dynamic>.from(_models[index]);
@@ -133,6 +137,10 @@ class _SettingsPageState extends State<SettingsPage> {
     );
     var reasoningEffort = original['reasoning_effort']?.toString() ?? '';
     if (!reasoningEfforts.contains(reasoningEffort)) reasoningEffort = '';
+    var apiMode = original['api_mode']?.toString() ?? 'auto';
+    if (!apiModes.contains(apiMode)) apiMode = 'auto';
+    var urlMode = original['url_mode']?.toString() ?? 'auto';
+    if (!urlModes.contains(urlMode)) urlMode = 'auto';
     var clearKey = false;
     final result = await showDialog<Map<String, dynamic>>(
       context: context,
@@ -178,6 +186,43 @@ class _SettingsPageState extends State<SettingsPage> {
                     controller: model,
                     decoration: const InputDecoration(labelText: '模型名'),
                   ),
+                  DropdownButtonFormField<String>(
+                    initialValue: urlMode,
+                    decoration: const InputDecoration(labelText: 'URL 模式'),
+                    items: const [
+                      DropdownMenuItem(value: 'auto', child: Text('自动识别')),
+                      DropdownMenuItem(
+                        value: 'api_root',
+                        child: Text('API 根地址（自动追加路径）'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'full_endpoint',
+                        child: Text('完整端点 URL（原样请求）'),
+                      ),
+                    ],
+                    onChanged: (value) =>
+                        setDialogState(() => urlMode = value ?? 'auto'),
+                  ),
+                  DropdownButtonFormField<String>(
+                    initialValue: apiMode,
+                    decoration: const InputDecoration(labelText: '接口格式'),
+                    items: const [
+                      DropdownMenuItem(
+                        value: 'auto',
+                        child: Text('自动（完整 URL 检测，根地址优先 Chat）'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'chat_completions',
+                        child: Text('Chat Completions'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'responses',
+                        child: Text('Responses'),
+                      ),
+                    ],
+                    onChanged: (value) =>
+                        setDialogState(() => apiMode = value ?? 'auto'),
+                  ),
                   TextField(
                     controller: timeout,
                     keyboardType: TextInputType.number,
@@ -221,6 +266,8 @@ class _SettingsPageState extends State<SettingsPage> {
                   'name': name.text.trim().isEmpty ? '模型配置' : name.text.trim(),
                   'base_url': baseUrl.text.trim(),
                   'model': model.text.trim(),
+                  'api_mode': apiMode,
+                  'url_mode': urlMode,
                   'timeout_seconds': int.tryParse(timeout.text) ?? 120,
                   'max_tokens': int.tryParse(maxTokens.text) ?? 2048,
                   'reasoning_effort': reasoningEffort,

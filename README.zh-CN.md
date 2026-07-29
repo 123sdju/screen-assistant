@@ -2,14 +2,15 @@
 
 [English](README.md)
 
-Screen Assistant 是一套不需要独立业务服务器的 Windows 截图 AI 助手和 Android 局域网遥控 App。Windows 客户端负责截图、模型调用、本地历史和局域网网关；Android App 用于遥控、查看流式结果、修改模型与配置组，以及控制同一电脑下其他 App 的结果翻页。
+Screen Assistant 是一套不需要独立业务服务器的 Windows/Linux 截图 AI 助手和 Android 局域网遥控 App。桌面客户端负责截图、模型调用、本地历史和局域网网关；Android App 用于遥控、查看流式结果、修改模型与配置组，以及控制同一电脑下其他 App 的结果翻页。
 
 项目不需要 PostgreSQL、账号系统、计费服务或单独部署的后端。
 
 ## 主要功能
 
 - 整屏截图、区域截图和多图缓冲，并可在桌面端预览。
-- 支持多个 OpenAI 兼容模型连接和多个提示词配置组。
+- 支持 Chat Completions 与 Responses 两类 OpenAI 兼容接口，可填写 API 根地址或完整端点 URL。
+- “完整端点 URL”模式严格使用任意自定义地址，不修改路径或查询参数。
 - 每个模型可设置思考强度；选择“自动”时请求不发送该字段。
 - 可选发送 `extra_body` JSON Object，并原样传递给兼容服务。
 - 可录制全局快捷键，实时显示冲突，按 Esc 取消录制。
@@ -18,6 +19,7 @@ Screen Assistant 是一套不需要独立业务服务器的 Windows 截图 AI �
 - App 支持 mDNS 自动发现、二维码扫码和手动局域网地址配对。
 - 通过 SSE 同步思考流、结果流、任务状态、配置变化和缓冲变化。
 - App 结果正文支持 `0.8×–1.8×` 字体缩放，导航栏、状态栏和配置界面保持系统字体。
+- App 中 Markdown 代码块在横竖屏均占满可用宽度并自动换行，无需左右滑动阅读长单行。
 - 电脑全局快捷键可控制所有当前停留在结果页的在线 App 翻页和调整字体。
 - 一部 App 可控制连接到同一电脑的其他 App 上下翻页。
 - App 可新增、编辑、删除模型连接和任务配置组。
@@ -28,16 +30,17 @@ Screen Assistant 是一套不需要独立业务服务器的 Windows 截图 AI �
 从 [GitHub Releases](../../releases/latest) 下载：
 
 - `ScreenAssistant-Windows-x64.exe`：Windows 便携客户端。
+- `ScreenAssistant-Linux-x86_64.tar.gz`：Linux x86_64 便携客户端。
 - `ScreenAssistant-Android.apk`：Android ARM 安装包。
 - `SHA256SUMS.txt`：两个安装文件的 SHA-256 校验值。
 
-将 EXE 放在一个独立、可写的目录中运行。由于社区构建尚未进行商业代码签名，Windows 可能显示 SmartScreen 提示。Android 端需要允许当前浏览器或文件管理器安装未知来源 APK。
+将桌面程序放在独立、可写的目录中运行。由于社区构建尚未进行商业代码签名，Windows 可能显示 SmartScreen 提示；Linux 安装方式和平台差异见 [Linux 桌面版](docs/linux.md)。Android 端需要允许当前浏览器或文件管理器安装未知来源 APK。
 
 协议功能发生变化时，电脑端和 App 应使用相同版本。
 
 ## 首次使用
 
-1. 在 Windows 软件的“模型连接”中填写 Base URL、API Key、模型名、可选思考强度和请求总超时。
+1. 在桌面软件的“模型连接”中填写 URL、URL 模式、接口格式、API Key、模型名、可选思考强度和请求总超时。“完整端点 URL”模式支持任意路径并原样保留查询参数。
 2. 在“配置组”中设置 System Prompt、用户提示词和可选 `extra_body`。
 3. 打开“局域网与配对”，生成六位配对码和二维码。
 4. 确保手机和电脑连接同一个可信局域网。
@@ -84,7 +87,7 @@ screen-assistant/
 
 要求：
 
-- Windows 10/11。
+- Windows 10/11，或 x86_64 Linux 桌面系统。
 - Python 3.11 或更高版本。
 - Flutter stable 3.29 或更高版本。
 - Android SDK 和 JDK 17。
@@ -114,10 +117,17 @@ cd screen-assistant
 .\scripts\package-release.ps1 -Version 1.0.0
 ```
 
+Linux 下执行：
+
+```bash
+bash scripts/build-linux.sh
+```
+
 构建输出不会进入 Git：
 
 - `desktop/dist/ScreenAssistant.exe`
 - `mobile/build/app/outputs/flutter-apk/app-release.apk`
+- `release/linux/ScreenAssistant-Linux-x86_64.tar.gz`
 - `release/v1.0.0/`
 
 ## 文档
@@ -125,6 +135,7 @@ cd screen-assistant
 - [架构说明](docs/architecture.md)
 - [配置和本地数据](docs/configuration.md)
 - [局域网协议](docs/protocol.md)
+- [Linux 桌面版](docs/linux.md)
 - [v1.0.0 手动测试清单](docs/manual-test-v1.0.0.md)
 - [版本记录](CHANGELOG.md)
 
