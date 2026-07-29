@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.1.0 (2026-07-30)
 
 - Added exact full-endpoint URL mode alongside API-root and automatic URL handling.
 - Added Chat Completions and Responses protocol selection for arbitrary provider endpoints.

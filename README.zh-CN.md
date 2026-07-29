@@ -114,7 +114,7 @@ cd screen-assistant
 ```powershell
 .\scripts\build-desktop.ps1
 .\scripts\build-apk.ps1
-.\scripts\package-release.ps1 -Version 1.0.0
+.\scripts\package-release.ps1 -Version 1.1.0
 ```
 
 Linux 下执行：
@@ -128,7 +128,7 @@ bash scripts/build-linux.sh
 - `desktop/dist/ScreenAssistant.exe`
 - `mobile/build/app/outputs/flutter-apk/app-release.apk`
 - `release/linux/ScreenAssistant-Linux-x86_64.tar.gz`
-- `release/v1.0.0/`
+- `release/v1.1.0/`
 
 ## 文档
 
@@ -136,7 +136,7 @@ bash scripts/build-linux.sh
 - [配置和本地数据](docs/configuration.md)
 - [局域网协议](docs/protocol.md)
 - [Linux 桌面版](docs/linux.md)
-- [v1.0.0 手动测试清单](docs/manual-test-v1.0.0.md)
+- [v1.1.0 手动测试清单](docs/manual-test-v1.1.0.md)
 - [版本记录](CHANGELOG.md)
 
 ## 许可证

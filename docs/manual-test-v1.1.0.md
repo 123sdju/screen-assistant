@@ -1,9 +1,10 @@
-# v1.0.0 手动测试清单
+# v1.1.0 手动测试清单
 
 使用同一版本的本地构建：
 
-- `release/v1.0.0/ScreenAssistant-Windows-x64.exe`
-- `release/v1.0.0/ScreenAssistant-Android.apk`
+- `release/v1.1.0/ScreenAssistant-Windows-x64.exe`
+- `release/v1.1.0/ScreenAssistant-Linux-x86_64.tar.gz`
+- `release/v1.1.0/ScreenAssistant-Android.apk`
 
 ## 模型与配置
 
@@ -52,4 +53,4 @@
 - 验证 X11 全局快捷键；在严格 Wayland 会话若合成器阻止监听，确认按钮和 App 遥控仍正常且软件不崩溃。
 - 确认代码回放控件在 Linux 明确显示不可用，不尝试申请 root 权限。
 
-本清单用于 GitHub `v1.0.0` 首次公开发布验收。
+本清单用于 GitHub `v1.1.0` 发布验收。
