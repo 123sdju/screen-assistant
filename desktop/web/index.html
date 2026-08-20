@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#3157d5" />
+    <title>Screen Assistant Web</title>
+    <link rel="stylesheet" href="/web/styles.css" />
+  </head>
+  <body>
+    <div id="toast-region" class="toast-region" aria-live="polite"></div>
+
+    <section id="connect-view" class="connect-screen">
+      <div class="connect-card">
+        <div class="brand-mark">SA</div>
+        <p class="eyebrow">SCREEN ASSISTANT</p>
+        <h1>连接电脑</h1>
+        <p class="lead">用桌面端二维码打开此页面，或手动输入电脑地址和六位配对码。</p>
+
+        <form id="pair-form" class="stack-form" autocomplete="off">
+          <label>
+            <span>电脑地址</span>
+            <input id="base-url" name="base-url" type="url" inputmode="url" placeholder="http://192.168.1.10:18765" required />
+          </label>
+          <label>
+            <span>六位配对码</span>
+            <input id="pair-code" name="pair-code" type="text" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" placeholder="123456" required />
+          </label>
+          <label>
+            <span>本机名称</span>
+            <input id="device-name" name="device-name" type="text" maxlength="128" placeholder="Screen Assistant Web" />
+          </label>
+          <button class="primary-button" type="submit">配对并连接</button>
+        </form>
+        <div id="connect-status" class="notice" role="status">等待连接</div>
+        <div class="connect-help">
+          <strong>二维码连接</strong>
+          <p>在桌面端“局域网与配对”生成二维码，用手机相机或浏览器扫码后会自动填入地址、配对码并开始连接。</p>
+          <strong>手动连接</strong>
+          <p>电脑和手机需在同一局域网；地址使用电脑的局域网 IPv4，不要填写手机的 127.0.0.1。</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="app-view" class="app-view" hidden>
+      <header class="app-header">
+        <div>
+          <p class="eyebrow">SCREEN ASSISTANT WEB</p>
+          <h1 id="desktop-name">Screen Assistant</h1>
+          <p id="connection-summary" class="connection-summary">连接中</p>
+        </div>
+        <div class="header-actions">
+          <div class="font-control" aria-label="结果字体大小">
+            <button id="font-decrease" class="icon-button" type="button" title="减小结果字体">A−</button>
+            <span id="font-scale-label">1.0×</span>
+            <button id="font-increase" class="icon-button" type="button" title="增大结果字体">A＋</button>
+          </div>
+          <button id="compact-mode-toggle" class="secondary-button compact-mode-button" type="button" aria-pressed="false" title="只显示当前结果和必要状态">专注</button>
+          <button id="refresh-button" class="secondary-button" type="button">刷新</button>
+          <button id="forget-button" class="secondary-button danger-button" type="button">移除连接</button>
+        </div>
+      </header>
+
+      <div class="app-layout">
+        <nav class="side-nav" aria-label="主导航">
+          <button class="nav-button active" type="button" data-page="current">当前结果</button>
+          <button class="nav-button" type="button" data-page="control">遥控</button>
+          <button class="nav-button" type="button" data-page="history">历史</button>
+          <button class="nav-button" type="button" data-page="settings">配置</button>
+        </nav>
+
+        <main class="main-content">
+          <section id="page-current" class="page page-scroll" data-page-panel="current">
+            <div class="page-heading">
+              <div>
+                <p class="eyebrow">LIVE TASK</p>
+                <h2>当前结果</h2>
+              </div>
+              <div class="profile-picker">
+                <label for="current-profile">当前配置组</label>
+                <select id="current-profile"></select>
+              </div>
+            </div>
+            <div class="action-row">
+              <button class="action-button" type="button" data-command="capture_fullscreen">整屏截图</button>
+              <button class="action-button" type="button" data-command="submit_buffer">提交缓冲</button>
+              <button class="action-button primary-button" type="button" data-command="capture_and_submit">截图并提交</button>
+              <button class="action-button" type="button" data-command="clear_buffer">清空缓冲</button>
+            </div>
+            <div class="status-grid">
+              <div class="status-card"><span>任务状态</span><strong id="task-status">就绪</strong></div>
+              <div id="buffer-status" class="status-card"><span>截图缓冲</span><strong id="buffer-count">0 张</strong></div>
+              <div class="status-card"><span>配置组</span><strong id="active-profile-name">-</strong></div>
+            </div>
+            <div class="result-grid">
+              <div id="current-empty" class="result-placeholder" hidden>电脑还没有创建任务</div>
+              <div id="current-progress" class="result-placeholder" hidden>
+                <span class="loading-dot" aria-hidden="true"></span>
+                正在等待模型输出...
+              </div>
+              <article id="thinking-panel" class="panel result-panel" hidden>
+                <div class="panel-heading"><h3>思考</h3><span id="thinking-state" class="muted">等待模型输出</span></div>
+                <div id="thinking-content" class="markdown-body empty">模型思考流会显示在这里。</div>
+              </article>
+              <article id="result-panel" class="panel result-panel result-panel-emphasis" hidden>
+                <div class="panel-heading"><h3>结果</h3><span id="result-state" class="muted">等待模型输出</span></div>
+                <div id="result-content" class="markdown-body result-text empty">模型最终结果会显示在这里。</div>
+              </article>
+            </div>
+            <div id="task-error" class="error-banner" hidden></div>
+          </section>
+
+          <section id="page-control" class="page page-scroll" data-page-panel="control" hidden>
+            <div class="page-heading">
+              <div><p class="eyebrow">REMOTE CONTROL</p><h2>遥控电脑</h2></div>
+            </div>
+            <div class="panel control-panel">
+              <p class="panel-intro">这些命令由电脑端执行。截图和模型请求仍在电脑本地完成，结果会通过实时事件同步回来。</p>
+              <div class="control-grid">
+                <button class="control-button" type="button" data-command="capture_fullscreen">整屏截图</button>
+                <button class="control-button" type="button" data-command="submit_buffer">提交当前缓冲</button>
+                <button class="control-button accent" type="button" data-command="capture_and_submit">截图并立即提交</button>
+                <button class="control-button" type="button" data-command="clear_buffer">清空截图缓冲</button>
+                <button class="control-button" type="button" data-command="scroll_apps_up">所有 Web/App 上翻页</button>
+                <button class="control-button" type="button" data-command="scroll_apps_down">所有 Web/App 下翻页</button>
+              </div>
+              <label class="wide-field" for="control-profile"><span>切换当前配置组</span><select id="control-profile"></select></label>
+            </div>
+            <div class="panel note-panel"><strong>跨设备控制</strong><p>电脑快捷键和其他已连接的客户端也会同步翻页、字体调整和配置变化。</p></div>
+          </section>
+
+          <section id="page-history" class="page page-scroll" data-page-panel="history" hidden>
+            <div class="page-heading">
+              <div><p class="eyebrow">LOCAL HISTORY</p><h2>历史任务</h2></div>
+              <button id="history-refresh" class="secondary-button" type="button">刷新历史</button>
+            </div>
+            <div class="history-layout">
+              <div id="history-list" class="panel history-list"></div>
+              <article id="history-detail" class="panel history-detail markdown-body empty">选择一条历史任务查看详情。</article>
+            </div>
+          </section>
+
+          <section id="page-settings" class="page page-scroll" data-page-panel="settings" hidden>
+            <div class="page-heading">
+              <div><p class="eyebrow">DESKTOP CONFIGURATION</p><h2>配置</h2></div>
+              <button id="settings-reload" class="secondary-button" type="button">重新读取</button>
+            </div>
+            <div id="settings-status" class="notice" hidden></div>
+            <div class="settings-grid">
+              <article class="panel">
+                <div class="panel-heading"><h3>模型连接</h3><button id="add-model" class="small-button" type="button">新增</button></div>
+                <div id="model-list" class="settings-list"></div>
+              </article>
+              <article class="panel">
+                <div class="panel-heading"><h3>任务配置组</h3><button id="add-profile" class="small-button" type="button">新增</button></div>
+                <div id="profile-list" class="settings-list"></div>
+              </article>
+            </div>
+            <div class="panel settings-footer">
+              <label class="wide-field" for="settings-active-profile"><span>保存后的当前配置组</span><select id="settings-active-profile"></select></label>
+              <button id="save-settings" class="primary-button" type="button">保存到电脑</button>
+              <p class="muted">API Key 只保存在电脑端。输入框留空会保持原值，也可以明确清除。</p>
+            </div>
+          </section>
+        </main>
+      </div>
+    </section>
+
+    <dialog id="editor-dialog" class="editor-dialog"></dialog>
+    <script src="/web/app.js" defer></script>
+  </body>
+</html>

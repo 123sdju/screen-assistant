@@ -14,11 +14,13 @@ Authorization: Bearer <device-token>
 {"code":"123456","device_id":"app-abc","device_name":"Pixel"}
 ```
 
-成功返回独立设备 Token。二维码格式为：
+成功返回独立设备 Token。桌面端二维码现在是直接打开 Web 端的链接：
 
-```json
-{"v":1,"url":"http://192.168.1.10:18765","desktop_id":"pc-abc","code":"123456"}
+```text
+http://192.168.1.10:18765/web?code=123456&desktop_id=pc-abc
 ```
+
+Android 端仍兼容旧版 JSON 二维码；Web 端打开链接后会自动填入地址和配对码。
 
 ## 状态和任务
 

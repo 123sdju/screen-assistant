@@ -3,13 +3,15 @@ from __future__ import annotations
 import queue
 import threading
 from collections.abc import Callable, Iterator
+from pathlib import Path
 from typing import Any
 
 import uvicorn
 from fastapi import Depends, FastAPI, Header, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel, Field
+from starlette.staticfiles import StaticFiles
 
 from app.events import EventHub, encode_sse
 from app.history import HistoryStore
@@ -54,6 +56,7 @@ class GatewayApi:
         self.public_profiles = public_profiles
         self.settings_snapshot = settings_snapshot
         self.settings_handler = settings_handler
+        self.web_dir = Path(__file__).resolve().parents[1] / "web"
         self.app = FastAPI(title="Screen Assistant LAN Gateway", version="1.0.0", docs_url=None, redoc_url=None)
         self.app.add_middleware(
             CORSMiddleware,
@@ -63,9 +66,19 @@ class GatewayApi:
             allow_headers=["Authorization", "Content-Type"],
         )
         self._register_routes()
+        if self.web_dir.is_dir():
+            self.app.mount("/web", StaticFiles(directory=self.web_dir, html=True), name="web")
 
     def _register_routes(self) -> None:
         app = self.app
+
+        @app.get("/", include_in_schema=False)
+        def web_home() -> FileResponse:
+            return FileResponse(self.web_dir / "index.html")
+
+        @app.get("/web", include_in_schema=False)
+        def web_root() -> FileResponse:
+            return FileResponse(self.web_dir / "index.html")
 
         @app.get("/health")
         def health() -> dict[str, str]:

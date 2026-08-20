@@ -1,4 +1,5 @@
 import sys
+from pathlib import Path
 
 from PyInstaller.utils.hooks import collect_submodules
 
@@ -14,11 +15,44 @@ hiddenimports = platform_hiddenimports + [
     "qrcode.image.pil",
 ]
 
+
+def collect_runtime_dlls() -> list[tuple[str, str]]:
+    """Bundle DLLs kept outside Python's DLL directory by Conda builds."""
+    if sys.platform != "win32":
+        return []
+    roots = {
+        Path(sys.prefix) / "Library" / "bin",
+        Path(getattr(sys, "base_prefix", sys.prefix)) / "Library" / "bin",
+        Path(sys.prefix) / "DLLs",
+        Path(getattr(sys, "base_prefix", sys.prefix)) / "DLLs",
+    }
+    names = {
+        "LIBBZ2.dll",
+        "libmpdec-4.dll",
+        "libcrypto-3-x64.dll",
+        "libssl-3-x64.dll",
+        "ffi.dll",
+        "sqlite3.dll",
+    }
+    result: list[tuple[str, str]] = []
+    seen: set[str] = set()
+    for root in roots:
+        for name in names:
+            candidate = root / name
+            key = str(candidate).lower()
+            if candidate.is_file() and key not in seen:
+                result.append((str(candidate), "."))
+                seen.add(key)
+    return result
+
+
+runtime_dlls = collect_runtime_dlls()
+
 a = Analysis(
     ["app/main.py"],
     pathex=["."],
-    binaries=[],
-    datas=[],
+    binaries=runtime_dlls,
+    datas=[("web", "web")],
     hiddenimports=hiddenimports,
     hookspath=[],
     excludes=["psycopg", "sqlalchemy"],

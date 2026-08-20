@@ -33,6 +33,72 @@ void main() {
     expect(lanAddressProblem('http://192.168.1.10:18765'), isNull);
   });
 
+  test('does not retry invalid LAN credentials', () {
+    expect(
+      shouldRetryLanConnection(
+        ApiException('Invalid or revoked token', statusCode: 401),
+      ),
+      isFalse,
+    );
+    expect(shouldRetryLanConnection(ApiException('电脑已退出')), isTrue);
+  });
+
+  test('a deliberately closed event client never reports a stale stream error', () async {
+    var errorReported = false;
+    final api = LanApiClient(
+      baseUrl: 'http://desktop',
+      token: 'old-token',
+      client: MockClient((_) async => http.Response('{}', 200)),
+    );
+    api.close();
+    await api.streamEvents((_) {}, (_) {
+      errorReported = true;
+    });
+    expect(errorReported, isFalse);
+  });
+
+  test('reports an event-stream 401 so the app can require re-pairing', () async {
+    Object? reported;
+    final api = LanApiClient(
+      baseUrl: 'http://desktop',
+      token: 'revoked-token',
+      client: MockClient(
+        (_) async => http.Response('{"detail":"Invalid or revoked token"}', 401),
+      ),
+    );
+    await api.streamEvents((_) {}, (error) {
+      reported = error;
+    });
+    expect(reported, isA<ApiException>());
+    expect((reported as ApiException).statusCode, 401);
+    api.close();
+  });
+
+  test('parses direct and legacy pairing QR payloads', () {
+    expect(
+      parsePairingQr(
+        'http://192.168.1.10:18765/web?code=123456&desktop_id=pc-test',
+      ),
+      <String, String>{
+        'url': 'http://192.168.1.10:18765',
+        'code': '123456',
+      },
+    );
+    expect(
+      parsePairingQr(
+        jsonEncode(<String, String>{
+          'url': 'http://192.168.1.11:18765',
+          'code': '654321',
+        }),
+      ),
+      <String, String>{
+        'url': 'http://192.168.1.11:18765',
+        'code': '654321',
+      },
+    );
+    expect(parsePairingQr('http://192.168.1.10:18765/web?code=abc123'), isNull);
+  });
+
   test('normalizes saved font scale and detects wide layouts', () {
     expect(normalizedFontScale(null), 1.0);
     expect(normalizedFontScale('0.1'), 0.8);

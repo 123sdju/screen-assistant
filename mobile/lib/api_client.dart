@@ -13,6 +13,10 @@ class ApiException implements Exception {
   String toString() => message;
 }
 
+bool shouldRetryLanConnection(Object error) {
+  return error is! ApiException || error.statusCode != 401;
+}
+
 class LanApiClient {
   LanApiClient({required this.baseUrl, this.token, http.Client? client})
     : client = client ?? http.Client();
@@ -20,6 +24,7 @@ class LanApiClient {
   final String baseUrl;
   final String? token;
   final http.Client client;
+  bool _closed = false;
 
   Map<String, String> get _headers {
     final headers = <String, String>{'Content-Type': 'application/json'};
@@ -61,10 +66,12 @@ class LanApiClient {
     void Function(Map<String, dynamic>) onEvent,
     FutureOr<void> Function(Object error) onError,
   ) async {
+    if (_closed) return;
     final request = http.Request('GET', Uri.parse('$baseUrl/v1/events'));
     request.headers.addAll(_headers);
     try {
       final response = await client.send(request);
+      if (_closed) return;
       if (response.statusCode < 200 || response.statusCode >= 300) {
         final body = await response.stream.bytesToString();
         throw ApiException(
@@ -82,8 +89,10 @@ class LanApiClient {
         final decoded = jsonDecode(raw);
         if (decoded is Map<String, dynamic>) onEvent(decoded);
       }
+      if (_closed) return;
       throw ApiException('局域网事件连接已断开');
     } catch (error) {
+      if (_closed) return;
       await onError(error);
     }
   }
@@ -169,5 +178,8 @@ class LanApiClient {
     return 'HTTP $status：$body';
   }
 
-  void close() => client.close();
+  void close() {
+    _closed = true;
+    client.close();
+  }
 }

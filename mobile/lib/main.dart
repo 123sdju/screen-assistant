@@ -40,6 +40,38 @@ String? lanAddressProblem(String value) {
   return null;
 }
 
+Map<String, String>? parsePairingQr(String raw) {
+  final value = raw.trim();
+  try {
+    final decoded = jsonDecode(value);
+    if (decoded is Map<String, dynamic> &&
+        decoded['url'] != null &&
+        decoded['code'] != null) {
+      return <String, String>{
+        'url': decoded['url'].toString(),
+        'code': decoded['code'].toString(),
+      };
+    }
+  } catch (_) {
+    // New desktop QR codes are direct Web links; legacy JSON remains supported.
+  }
+  final uri = Uri.tryParse(value);
+  final code = uri?.queryParameters['code'];
+  if (uri == null ||
+      code == null ||
+      !RegExp(r'^\d{6}$').hasMatch(code) ||
+      !uri.hasAuthority) {
+    return null;
+  }
+  final base = Uri(
+    scheme: uri.scheme,
+    userInfo: uri.userInfo,
+    host: uri.host,
+    port: uri.hasPort ? uri.port : null,
+  ).toString().replaceAll(RegExp(r'/+$'), '');
+  return <String, String>{'url': base, 'code': code};
+}
+
 class WrappingCodeBlockBuilder extends MarkdownElementBuilder {
   @override
   bool isBlockElement() => true;
@@ -178,7 +210,7 @@ class AppShell extends StatefulWidget {
 
 class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
   final _urlController = TextEditingController(
-    text: 'http://192.168.1.2:18765',
+    text: '',
   );
   final _codeController = TextEditingController();
   final _nameController = TextEditingController(text: 'Screen Assistant App');
@@ -192,6 +224,7 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
   String _deviceId = '';
   String _token = '';
   String _baseUrl = '';
+  bool _focusMode = false;
   LanApiClient? _api;
   int _streamGeneration = 0;
   Timer? _reconnectTimer;
@@ -227,8 +260,7 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    _reconnectTimer?.cancel();
-    _api?.close();
+    _invalidateConnection();
     _discovery.stop();
     _urlController.dispose();
     _codeController.dispose();
@@ -239,7 +271,7 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed && _token.isNotEmpty) {
+    if (state == AppLifecycleState.resumed && _token.isNotEmpty && !_pairing) {
       _connectSaved();
     }
   }
@@ -255,6 +287,7 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
     _deviceId = deviceId;
     _baseUrl = await widget.storage.read(key: 'base_url') ?? '';
     _token = await widget.storage.read(key: 'token') ?? '';
+    _focusMode = await widget.storage.read(key: 'focus_mode') == 'true';
     if (_baseUrl.isNotEmpty) _urlController.text = _baseUrl;
     if (_baseUrl.isNotEmpty && _token.isNotEmpty) {
       await _connectSaved();
@@ -290,22 +323,21 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
     ).push<String>(MaterialPageRoute(builder: (_) => const QrScannerPage()));
     if (raw == null) return;
     try {
-      final payload = jsonDecode(raw);
-      if (payload is! Map<String, dynamic> ||
-          payload['url'] == null ||
-          payload['code'] == null) {
+      final payload = parsePairingQr(raw);
+      if (payload == null) {
         throw const FormatException();
       }
-      final problem = lanAddressProblem(payload['url'].toString());
+      final problem = lanAddressProblem(payload['url']!);
       if (problem != null) {
         _showMessage('电脑二维码中的地址无效：$problem\n请升级电脑端并重新生成二维码。');
         return;
       }
       setState(() {
-        _urlController.text = payload['url'].toString();
-        _codeController.text = payload['code'].toString();
-        _status = '已读取二维码，请点击配对';
+        _urlController.text = payload['url']!;
+        _codeController.text = payload['code']!;
+        _status = '已读取二维码，正在自动配对...';
       });
+      await _pair();
     } catch (_) {
       _showMessage('二维码不是 Screen Assistant 配对码');
     }
@@ -324,12 +356,26 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
       _showMessage('请输入电脑端显示的六位配对码');
       return;
     }
-    setState(() {
-      _pairing = true;
-      _status = '正在配对...';
-    });
+    if (_pairing) return;
+    final generation = _invalidateConnection();
+    _baseUrl = url;
+    _token = '';
+    if (mounted) {
+      setState(() {
+        _pairing = true;
+        _connected = false;
+        _loading = false;
+        _status = '正在配对...';
+      });
+    }
     final api = LanApiClient(baseUrl: url);
     try {
+      // Selecting another desktop is an explicit switch. Persist the new
+      // address and remove the old token before the request so a failed pair
+      // cannot silently fall back to desktop A on the next lifecycle event.
+      await widget.storage.delete(key: 'token');
+      await widget.storage.write(key: 'base_url', value: url);
+      if (!mounted || generation != _streamGeneration) return;
       final response = await api.pair(
         code: code,
         deviceId: _deviceId,
@@ -337,25 +383,64 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
       );
       final token = response['token']?.toString() ?? '';
       if (token.isEmpty) throw ApiException('配对响应缺少 Token');
-      await widget.storage.write(key: 'base_url', value: url);
       await widget.storage.write(key: 'token', value: token);
+      if (!mounted || generation != _streamGeneration) return;
       _baseUrl = url;
       _token = token;
+      setState(() {
+        _pairing = false;
+        _loading = true;
+        _status = '正在连接电脑...';
+      });
       await _connectSaved();
     } catch (error) {
-      if (mounted) setState(() => _status = '配对失败：$error');
+      if (mounted && generation == _streamGeneration) {
+        setState(() {
+          _pairing = false;
+          _loading = false;
+          _status = '配对失败：$error';
+        });
+      }
     } finally {
       api.close();
-      if (mounted) setState(() => _pairing = false);
+      if (mounted && _pairing) {
+        setState(() => _pairing = false);
+      }
     }
   }
 
-  Future<void> _connectSaved() async {
-    _reconnectTimer?.cancel();
+  int _invalidateConnection() {
     _streamGeneration++;
-    _api?.close();
-    final generation = _streamGeneration;
-    final api = LanApiClient(baseUrl: _baseUrl, token: _token);
+    _reconnectTimer?.cancel();
+    _reconnectTimer = null;
+    final api = _api;
+    _api = null;
+    api?.close();
+    return _streamGeneration;
+  }
+
+  bool _isCurrentConnection(int generation, LanApiClient api) {
+    return mounted &&
+        generation == _streamGeneration &&
+        identical(_api, api);
+  }
+
+  Future<void> _connectSaved() async {
+    if (_pairing) return;
+    final baseUrl = _baseUrl;
+    final token = _token;
+    if (baseUrl.isEmpty || token.isEmpty) {
+      _invalidateConnection();
+      if (mounted) {
+        setState(() {
+          _connected = false;
+          _loading = false;
+        });
+      }
+      return;
+    }
+    final generation = _invalidateConnection();
+    final api = LanApiClient(baseUrl: baseUrl, token: token);
     _api = api;
     if (mounted) {
       setState(() {
@@ -365,7 +450,10 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
     }
     try {
       final data = await api.bootstrap();
-      if (!mounted || generation != _streamGeneration) return;
+      if (!_isCurrentConnection(generation, api)) {
+        api.close();
+        return;
+      }
       _applyBootstrap(data);
       setState(() {
         _connected = true;
@@ -375,29 +463,79 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
       unawaited(
         api.streamEvents(
           (event) {
-            if (mounted && generation == _streamGeneration) _handleEvent(event);
+            if (_isCurrentConnection(generation, api)) _handleEvent(event);
           },
-          (error) {
-            if (!mounted || generation != _streamGeneration) return;
-            setState(() {
-              _connected = false;
-              _status = '连接断开，正在重连...';
-            });
-            _reconnectTimer?.cancel();
-            _reconnectTimer = Timer(const Duration(seconds: 3), _connectSaved);
-          },
+          (error) => _handleStreamError(generation, api, error),
         ),
       );
     } catch (error) {
-      if (!mounted || generation != _streamGeneration) return;
+      if (!_isCurrentConnection(generation, api)) {
+        api.close();
+        return;
+      }
+      _api = null;
+      api.close();
       setState(() {
         _connected = false;
         _loading = false;
         _status = '连接失败：$error';
       });
-      if (error is ApiException && error.statusCode == 401) return;
-      _reconnectTimer = Timer(const Duration(seconds: 3), _connectSaved);
+      if (shouldRetryLanConnection(error)) {
+        _scheduleReconnect(generation);
+      } else {
+        await _clearInvalidToken(generation);
+      }
     }
+  }
+
+  Future<void> _handleStreamError(
+    int generation,
+    LanApiClient api,
+    Object error,
+  ) async {
+    if (!_isCurrentConnection(generation, api)) {
+      api.close();
+      return;
+    }
+    _api = null;
+    api.close();
+    if (!shouldRetryLanConnection(error)) {
+      await _clearInvalidToken(generation);
+      return;
+    }
+    if (!mounted || generation != _streamGeneration) return;
+    setState(() {
+      _connected = false;
+      _loading = false;
+      _status = '连接断开，正在重连...';
+    });
+    _scheduleReconnect(generation);
+  }
+
+  Future<void> _clearInvalidToken(int generation) async {
+    if (!mounted || generation != _streamGeneration) return;
+    _token = '';
+    setState(() {
+      _connected = false;
+      _loading = true;
+      _status = '连接凭证已失效，正在清理...';
+    });
+    await widget.storage.delete(key: 'token');
+    if (!mounted || generation != _streamGeneration) return;
+    setState(() {
+      _loading = false;
+      _status = '连接凭证已失效，请重新配对';
+    });
+  }
+
+  void _scheduleReconnect(int generation) {
+    if (!mounted || generation != _streamGeneration || _pairing) return;
+    _reconnectTimer?.cancel();
+    _reconnectTimer = Timer(const Duration(seconds: 3), () {
+      _reconnectTimer = null;
+      if (!mounted || generation != _streamGeneration || _pairing) return;
+      _connectSaved();
+    });
   }
 
   void _applyBootstrap(Map<String, dynamic> data) {
@@ -552,12 +690,19 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
   }
 
   Future<void> _forgetDesktop() async {
-    _streamGeneration++;
-    _reconnectTimer?.cancel();
-    _api?.close();
+    final generation = _invalidateConnection();
+    if (mounted) {
+      setState(() {
+        _connected = false;
+        _loading = true;
+        _token = '';
+        _baseUrl = '';
+        _status = '正在移除本机连接...';
+      });
+    }
     await widget.storage.delete(key: 'base_url');
     await widget.storage.delete(key: 'token');
-    if (!mounted) return;
+    if (!mounted || generation != _streamGeneration) return;
     setState(() {
       _connected = false;
       _loading = false;
@@ -565,6 +710,15 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
       _baseUrl = '';
       _status = '已移除本机连接';
     });
+  }
+
+  Future<void> _toggleFocusMode() async {
+    final next = !_focusMode;
+    setState(() {
+      _focusMode = next;
+      if (next) _tabIndex = 0;
+    });
+    await widget.storage.write(key: 'focus_mode', value: next.toString());
   }
 
   void _showMessage(String message) {
@@ -630,6 +784,27 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
     icon: const Icon(Icons.format_size),
   );
 
+  Widget _focusAction() => IconButton(
+    tooltip: _focusMode ? '退出专注模式' : '进入专注模式',
+    onPressed: _toggleFocusMode,
+    icon: Icon(_focusMode ? Icons.fullscreen_exit : Icons.fullscreen),
+  );
+
+  Future<void> _openPairingPage() async {
+    _invalidateConnection();
+    _token = '';
+    _codeController.clear();
+    if (mounted) {
+      setState(() {
+        _connected = false;
+        _loading = false;
+        _pairing = false;
+        _status = '请选择要连接的电脑';
+      });
+    }
+    await widget.storage.delete(key: 'token');
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_loading && !_connected) {
@@ -641,6 +816,12 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
               const CircularProgressIndicator(),
               const SizedBox(height: 16),
               Text(_status),
+              const SizedBox(height: 24),
+              OutlinedButton.icon(
+                onPressed: _openPairingPage,
+                icon: const Icon(Icons.swap_horiz),
+                label: const Text('切换电脑'),
+              ),
             ],
           ),
         ),
@@ -744,7 +925,9 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    '$_status · $_activeProfileName · 缓冲 $_bufferCount 张${_busy ? ' · 处理中' : ''}',
+                    _focusMode
+                        ? '$_status · 配置组：$_activeProfileName${_busy ? ' · 处理中' : ''}'
+                        : '$_status · $_activeProfileName · 缓冲 $_bufferCount 张${_busy ? ' · 处理中' : ''}',
                   ),
                 ),
               ],
@@ -752,7 +935,10 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
           ),
         ),
         Expanded(
-          child: IndexedStack(index: _tabIndex, children: pages),
+          child: IndexedStack(
+            index: _focusMode ? 0 : _tabIndex,
+            children: pages,
+          ),
         ),
       ],
     );
@@ -761,18 +947,23 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
         title: Text(_desktop['name']?.toString() ?? 'Screen Assistant'),
         actions: [
           _fontAction(),
-          IconButton(onPressed: _connectSaved, icon: const Icon(Icons.refresh)),
-          PopupMenuButton<String>(
-            onSelected: (value) {
-              if (value == 'forget') _forgetDesktop();
-            },
-            itemBuilder: (_) => const [
-              PopupMenuItem(value: 'forget', child: Text('移除此电脑')),
-            ],
-          ),
+          _focusAction(),
+          if (!_focusMode) ...[
+            IconButton(onPressed: _connectSaved, icon: const Icon(Icons.refresh)),
+            PopupMenuButton<String>(
+              onSelected: (value) {
+                if (value == 'forget') _forgetDesktop();
+              },
+              itemBuilder: (_) => const [
+                PopupMenuItem(value: 'forget', child: Text('移除此电脑')),
+              ],
+            ),
+          ],
         ],
       ),
-      body: wide
+      body: _focusMode
+          ? pageBody
+          : wide
           ? Row(
               children: [
                 NavigationRail(
@@ -805,6 +996,7 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
             )
           : pageBody,
       bottomNavigationBar: wide
+          || _focusMode
           ? null
           : NavigationBar(
               selectedIndex: _tabIndex,

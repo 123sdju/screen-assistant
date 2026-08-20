@@ -64,6 +64,37 @@ def test_pair_auth_bootstrap_and_command_do_not_expose_model_secret() -> None:
         assert client.get("/v1/bootstrap").status_code == 401
 
 
+def test_web_client_is_served_by_the_same_gateway() -> None:
+    with tempfile.TemporaryDirectory(dir=Path.cwd()) as folder:
+        _config, _pairing, client = _api(Path(folder), lambda *_args: {})
+        home = client.get("/")
+        page = client.get("/web")
+        stylesheet = client.get("/web/styles.css")
+        script = client.get("/web/app.js")
+
+        assert home.status_code == 200
+        assert "Screen Assistant Web" in home.text
+        assert 'href="/web/styles.css"' in home.text
+        assert 'src="/web/app.js"' in home.text
+        assert 'id="compact-mode-toggle"' in home.text
+        assert 'id="buffer-status"' in home.text
+        assert page.status_code == 200
+        assert "Screen Assistant Web" in page.text
+        assert stylesheet.status_code == 200
+        assert "--accent" in stylesheet.text
+        assert ".result-grid { display: flex; flex-direction: column;" in stylesheet.text
+        assert ".result-panel .markdown-body { font-size: calc(1rem * var(--result-scale)); }" in stylesheet.text
+        assert "@media (max-width: 699px)" in stylesheet.text
+        assert "body.compact-mode .side-nav" in stylesheet.text
+        assert script.status_code == 200
+        assert "pairAndConnect" in script.text
+        assert "eventStreamConnected" in script.text
+        assert "已同步电脑字体" in script.text
+        assert "shouldApplyRemoteViewControl" in script.text
+        assert "compactMode" in script.text
+        assert "toggleCompactMode" in script.text
+
+
 def test_authenticated_settings_can_be_read_and_updated() -> None:
     with tempfile.TemporaryDirectory(dir=Path.cwd()) as folder:
         _config, pairing, client = _api(

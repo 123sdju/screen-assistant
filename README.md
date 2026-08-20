@@ -2,7 +2,7 @@
 
 [简体中文](README.zh-CN.md)
 
-Screen Assistant is a serverless Windows/Linux screenshot assistant with an Android LAN companion App. The desktop client captures and previews screenshots, calls an OpenAI-compatible model directly, stores optional local history, and hosts an embedded authenticated LAN gateway. No PostgreSQL, account service, billing backend, or separately deployed server is required.
+Screen Assistant is a serverless Windows/Linux screenshot assistant with Android and Web LAN companion clients. The desktop client captures and previews screenshots, calls an OpenAI-compatible model directly, stores optional local history, and hosts an embedded authenticated LAN gateway. No PostgreSQL, account service, billing backend, or separately deployed server is required.
 
 ## Highlights
 
@@ -19,7 +19,9 @@ Screen Assistant is a serverless Windows/Linux screenshot assistant with an Andr
 - Full-width, soft-wrapped Markdown code blocks in portrait and landscape, without horizontal reading scroll.
 - Desktop shortcuts can page and resize text on every connected App currently showing the result page.
 - One App can page results on other Apps connected to the same desktop.
+- Android and Web clients provide a persistent focus mode that keeps only the current result and essential status visible.
 - Model and profile editing from the App; existing API keys are never returned over LAN.
+- A browser client at `/` or `/web` can replace the Android App; pair through the QR link or enter the desktop address manually.
 
 ## Download and install
 
@@ -39,7 +41,7 @@ Both sides must use the same release version when protocol features change.
 1. Open **Model connections** on the desktop and enter the provider URL, URL mode, API format, API Key, model name, optional reasoning effort, and total request timeout. Exact full-endpoint mode preserves arbitrary paths and query strings.
 2. Open **Profiles** and configure the system prompt, user prompt, and optional `extra_body`.
 3. Open **LAN & pairing**, generate a six-digit code/QR code, and keep the desktop running.
-4. Connect the phone to the same trusted Wi-Fi, then discover, scan, or enter `http://<desktop-lan-ip>:18765`.
+4. Connect the phone or computer to the same trusted Wi-Fi. Open the QR link in a browser, or visit `http://<desktop-lan-ip>:18765` (or `/web`) and enter the address/code manually.
 5. Allow `ScreenAssistant.exe` through Windows Firewall on private networks when prompted.
 
 `127.0.0.1` and `localhost` on the phone point to the phone itself. Use the desktop's actual LAN IPv4 address, such as `192.168.1.10`.

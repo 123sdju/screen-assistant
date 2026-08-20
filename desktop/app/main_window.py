@@ -9,6 +9,7 @@ import uuid
 from io import BytesIO
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlencode
 
 import qrcode
 from PySide6.QtCore import QObject, QSize, Qt, Signal, Slot
@@ -1208,7 +1209,7 @@ class MainWindow(QMainWindow):
         self._pair_code, self._pair_expiry = code, expiry
         self.pair_code_label.setText(code)
         address = f"http://{self._lan_address}:{self.config.data['lan']['port']}"
-        payload = json.dumps({"v": 1, "url": address, "desktop_id": self.config.data["device_id"], "code": code}, separators=(",", ":"))
+        payload = f"{address}/web?{urlencode({'code': code, 'desktop_id': self.config.data['device_id']})}"
         image = qrcode.make(payload)
         buffer = BytesIO()
         image.save(buffer, format="PNG")
