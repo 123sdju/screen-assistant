@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.2.0 (2026-08-20)
+
+- Added an embedded Web companion at `/` and `/web` with QR-link pairing, SSE task streaming, history, remote controls, settings, focus mode, and result font controls.
+- Added direct Web URL QR payloads while keeping Android compatibility with legacy JSON pairing payloads.
+- Hardened App connection lifecycle handling: switching desktops invalidates old tokens, stale streams are ignored, and revoked credentials require re-pairing instead of retrying.
+- Bundled Web assets in the desktop package and expanded gateway/App regression coverage.
+
 ## 1.1.0 (2026-07-30)
 
 - Added exact full-endpoint URL mode alongside API-root and automatic URL handling.

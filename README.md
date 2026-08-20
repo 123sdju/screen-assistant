@@ -4,6 +4,8 @@
 
 Screen Assistant is a serverless Windows/Linux screenshot assistant with Android and Web LAN companion clients. The desktop client captures and previews screenshots, calls an OpenAI-compatible model directly, stores optional local history, and hosts an embedded authenticated LAN gateway. No PostgreSQL, account service, billing backend, or separately deployed server is required.
 
+Current release: `1.2.0`
+
 ## Highlights
 
 - Full-screen, region, and multi-image capture with desktop preview.
@@ -106,7 +108,7 @@ Build release artifacts:
 ```powershell
 .\scripts\build-desktop.ps1
 .\scripts\build-apk.ps1
-.\scripts\package-release.ps1 -Version 1.1.0
+.\scripts\package-release.ps1 -Version 1.2.0
 ```
 
 On Linux:
@@ -120,7 +122,7 @@ Outputs are intentionally ignored by Git:
 - `desktop/dist/ScreenAssistant.exe`
 - `mobile/build/app/outputs/flutter-apk/app-release.apk`
 - `release/linux/ScreenAssistant-Linux-x86_64.tar.gz`
-- `release/v1.1.0/`
+- `release/v1.2.0/`
 
 ## Documentation
 
@@ -128,7 +130,7 @@ Outputs are intentionally ignored by Git:
 - [Configuration and data](docs/configuration.md)
 - [LAN protocol](docs/protocol.md)
 - [Linux desktop](docs/linux.md)
-- [v1.1.0 manual test checklist](docs/manual-test-v1.1.0.md)
+- [v1.2.0 manual test checklist](docs/manual-test-v1.2.0.md)
 - [Changelog](CHANGELOG.md)
 
 ## License

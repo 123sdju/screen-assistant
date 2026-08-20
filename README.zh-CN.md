@@ -4,6 +4,8 @@
 
 Screen Assistant 是一套不需要独立业务服务器的 Windows/Linux 截图 AI 助手，以及 Android/Web 局域网遥控客户端。桌面客户端负责截图、模型调用、本地历史和局域网网关；Android App 或浏览器 Web 端用于遥控、查看流式结果、修改模型与配置组，以及控制同一电脑下其他客户端的结果翻页。
 
+当前版本：`1.2.0`
+
 项目不需要 PostgreSQL、账号系统、计费服务或单独部署的后端。
 
 ## 主要功能
@@ -116,7 +118,7 @@ cd screen-assistant
 ```powershell
 .\scripts\build-desktop.ps1
 .\scripts\build-apk.ps1
-.\scripts\package-release.ps1 -Version 1.1.0
+.\scripts\package-release.ps1 -Version 1.2.0
 ```
 
 Linux 下执行：
@@ -130,7 +132,7 @@ bash scripts/build-linux.sh
 - `desktop/dist/ScreenAssistant.exe`
 - `mobile/build/app/outputs/flutter-apk/app-release.apk`
 - `release/linux/ScreenAssistant-Linux-x86_64.tar.gz`
-- `release/v1.1.0/`
+- `release/v1.2.0/`
 
 ## 文档
 
@@ -138,7 +140,7 @@ bash scripts/build-linux.sh
 - [配置和本地数据](docs/configuration.md)
 - [局域网协议](docs/protocol.md)
 - [Linux 桌面版](docs/linux.md)
-- [v1.1.0 手动测试清单](docs/manual-test-v1.1.0.md)
+- [v1.2.0 手动测试清单](docs/manual-test-v1.2.0.md)
 - [版本记录](CHANGELOG.md)
 
 ## 许可证

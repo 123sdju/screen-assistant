@@ -1,15 +1,17 @@
 # 架构说明
 
-Screen Assistant 不依赖公网业务服务器。Windows/Linux 桌面程序同时承担截图、模型请求、本地历史和局域网网关职责，Android App 是已配对的遥控、配置和结果终端。
+Screen Assistant 不依赖公网业务服务器。Windows/Linux 桌面程序同时承担截图、模型请求、本地历史和局域网网关职责，Android App 和浏览器 Web 端是已配对的遥控、配置和结果终端。
 
 ```mermaid
 flowchart LR
     Android[Android App] -->|HTTP + Bearer Token| Gateway[桌面内嵌 FastAPI Gateway]
+    Web[浏览器 Web 端] -->|HTTP + Bearer Token| Gateway
     Gateway -->|Qt Signal| UI[PySide6 UI]
     UI --> Task[本地任务引擎]
     Task -->|OpenAI-compatible HTTPS| Model[模型供应商]
     Task --> History[SQLite + 本地截图]
     Task -->|SSE| Android
+    Task -->|SSE| Web
 ```
 
 ## 安全边界

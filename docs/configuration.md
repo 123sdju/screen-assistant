@@ -14,6 +14,8 @@
 
 LAN Gateway 默认监听 `0.0.0.0:18765`。`lan.advertise_address` 默认留空，由桌面端优先从 WLAN、物理以太网中自动选择配对地址，并降低 VPN、VirtualBox、Hyper-V 和 WSL 网卡优先级。多网卡环境可在“设置 → 对外配对 IPv4”填写电脑当前局域网 IPv4。禁止填写 `127.0.0.1`、`0.0.0.0` 和链路本地地址。
 
+网关同时提供浏览器 Web 端：`/` 和 `/web` 都会返回 Web 客户端页面。桌面二维码使用带 `code` 和 `desktop_id` 查询参数的 Web 链接；浏览器打开后会自动填写地址和配对码并开始配对。Android App 继续兼容旧版 JSON 二维码。Web 和 Android 都可使用 SSE 结果流、历史、遥控、配置编辑、专注模式和结果字体调整。
+
 当 `extra_body_enabled=false` 时，请求不携带该参数；启用时 `extra_body` 必须是 JSON Object，并原样传给 OpenAI 兼容 SDK。
 
 当模型连接已经设置 `reasoning_effort` 时，配置组的 `extra_body` 不得再次包含同名字段。需要供应商自定义值时，应把模型思考强度设为“自动”，再通过 `extra_body` 原样传递。
