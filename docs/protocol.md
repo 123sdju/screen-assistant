@@ -1,6 +1,6 @@
 # LAN 协议 v1
 
-默认地址为 `http://<电脑局域网IP>:18765`。除 `/health` 和 `/v1/pair` 外，所有接口要求：
+默认地址为 `http://<电脑局域网IP>:18765`。浏览器 Web 页面由同一个桌面网关提供。除 `/`、`/web`、`/health` 和 `/v1/pair` 外，所有接口要求：
 
 ```http
 Authorization: Bearer <device-token>
@@ -21,6 +21,17 @@ http://192.168.1.10:18765/web?code=123456&desktop_id=pc-abc
 ```
 
 Android 端仍兼容旧版 JSON 二维码；Web 端打开链接后会自动填入地址和配对码。
+
+## Web 客户端
+
+- `GET /` 和 `GET /web`：返回桌面端内嵌的 Web 客户端页面，不需要 Bearer Token。页面中的静态脚本和样式通过 `/web/` 路径加载。
+- Web 页面可以直接使用当前地址中的 `code` 查询参数配对，例如 `http://<电脑局域网IP>:18765/web?code=123456&desktop_id=<电脑ID>`。打开二维码链接时，当前来源地址会覆盖浏览器中保存的旧桌面地址。
+- Web 首次配对调用 `POST /v1/pair`，请求中的 `device_id` 以 `web-` 前缀标识浏览器设备。返回的 Token 保存在该浏览器当前来源的本地存储中。
+- 配对后，Web 使用与 Android App 相同的 Bearer Token 接口：先读取 `/v1/bootstrap`，再订阅 `/v1/events`，并按需访问任务、配置和遥控接口。
+- Web 不提供截图下载接口；截图、API Key 原文和桌面端运行文件不会通过这些接口返回。
+- 点击“移除连接”会清除浏览器中的地址和 Token。桌面端撤销设备后，接口返回 `401`，Web 必须重新配对。
+
+完整的浏览器操作流程、功能说明和故障排查见 [Web 端说明](web.md)。
 
 ## 状态和任务
 

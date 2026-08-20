@@ -2,6 +2,8 @@
 
 Screen Assistant 不依赖公网业务服务器。Windows/Linux 桌面程序同时承担截图、模型请求、本地历史和局域网网关职责，Android App 和浏览器 Web 端是已配对的遥控、配置和结果终端。
 
+浏览器端无需额外部署，直接访问桌面网关的 `/` 或 `/web` 页面；具体配对和操作流程见 [Web 端说明](web.md)。
+
 ```mermaid
 flowchart LR
     Android[Android App] -->|HTTP + Bearer Token| Gateway[桌面内嵌 FastAPI Gateway]

@@ -139,6 +139,7 @@ bash scripts/build-linux.sh
 - [架构说明](docs/architecture.md)
 - [配置和本地数据](docs/configuration.md)
 - [局域网协议](docs/protocol.md)
+- [Web 端说明](docs/web.md)
 - [Linux 桌面版](docs/linux.md)
 - [v1.2.0 手动测试清单](docs/manual-test-v1.2.0.md)
 - [版本记录](CHANGELOG.md)

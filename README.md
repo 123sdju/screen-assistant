@@ -129,6 +129,7 @@ Outputs are intentionally ignored by Git:
 - [Architecture](docs/architecture.md)
 - [Configuration and data](docs/configuration.md)
 - [LAN protocol](docs/protocol.md)
+- [Web companion](docs/web.md)
 - [Linux desktop](docs/linux.md)
 - [v1.2.0 manual test checklist](docs/manual-test-v1.2.0.md)
 - [Changelog](CHANGELOG.md)
