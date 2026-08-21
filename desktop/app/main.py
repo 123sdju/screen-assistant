@@ -4,6 +4,7 @@ import sys
 import tempfile
 from pathlib import Path
 
+from PySide6.QtCore import QTimer
 from PySide6.QtNetwork import QLocalServer, QLocalSocket
 from PySide6.QtWidgets import QApplication
 
@@ -50,6 +51,7 @@ def main() -> int:
 
     server.newConnection.connect(show_existing)
     window.show()
+    QTimer.singleShot(0, window.start_gateway)
     exit_code = app.exec()
     server.close()
     QLocalServer.removeServer(INSTANCE_NAME)

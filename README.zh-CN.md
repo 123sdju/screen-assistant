@@ -4,7 +4,7 @@
 
 Screen Assistant 是一套不需要独立业务服务器的 Windows/Linux 截图 AI 助手，以及 Android/Web 局域网遥控客户端。桌面客户端负责截图、模型调用、本地历史和局域网网关；Android App 或浏览器 Web 端用于遥控、查看流式结果、修改模型与配置组，以及控制同一电脑下其他客户端的结果翻页。
 
-当前版本：`1.2.1`
+当前版本：`1.2.2`
 
 项目不需要 PostgreSQL、账号系统、计费服务或单独部署的后端。
 
@@ -30,6 +30,7 @@ Screen Assistant 是一套不需要独立业务服务器的 Windows/Linux 截图
 - App 可新增、编辑、删除模型连接和任务配置组。
 - 已有 API Key 不会通过局域网回显，App 只能保持、替换或清除。
 - 可在浏览器打开 `http://<电脑局域网IP>:18765` 或 `/web`，使用二维码链接或手动地址连接，不必安装 Android App。
+- Web“当前结果”页只负责查看任务状态和结果；截图、提交、清空及翻页等桌面操作集中在“遥控”页，遥控按钮保持统一的普通样式，不突出单一主按钮。
 
 ## 下载与安装
 
@@ -51,7 +52,7 @@ Screen Assistant 是一套不需要独立业务服务器的 Windows/Linux 截图
 3. 打开“局域网与配对”，生成六位配对码和二维码。
 4. 确保手机和电脑连接同一个可信局域网。
 5. App 可自动发现电脑、扫描二维码，或手动输入 `http://<电脑局域网IP>:18765`；Web 端可直接打开二维码链接，或访问 `http://<电脑局域网IP>:18765`（也支持 `/web`）后手动输入地址和配对码。
-6. Windows 防火墙提示时，仅允许专用网络访问。
+6. 桌面端启动局域网网关时，Windows 可能显示原生网络访问申请；在系统弹窗中只勾选专用网络，取消公用网络。软件不会自动创建或修改防火墙规则，Web 和 Android 继续使用同一个局域网网关。
 
 手机中的 `127.0.0.1` 和 `localhost` 指向手机自身，不能用于连接电脑。应填写电脑真实的局域网 IPv4，例如 `192.168.1.10`。
 
@@ -120,7 +121,7 @@ cd screen-assistant
 ```powershell
 .\scripts\build-desktop.ps1
 .\scripts\build-apk.ps1
-.\scripts\package-release.ps1 -Version 1.2.1
+.\scripts\package-release.ps1 -Version 1.2.2
 ```
 
 Linux 下执行：
@@ -134,7 +135,7 @@ bash scripts/build-linux.sh
 - `desktop/dist/ScreenAssistant.exe`
 - `mobile/build/app/outputs/flutter-apk/app-release.apk`
 - `release/linux/ScreenAssistant-Linux-x86_64.tar.gz`
-- `release/v1.2.1/`
+- `release/v1.2.2/`
 
 ## 文档
 
@@ -143,6 +144,7 @@ bash scripts/build-linux.sh
 - [局域网协议](docs/protocol.md)
 - [Web 端说明](docs/web.md)
 - [Linux 桌面版](docs/linux.md)
+- [v1.2.2 手动测试清单](docs/manual-test-v1.2.2.md)
 - [v1.2.1 手动测试清单](docs/manual-test-v1.2.1.md)
 - [v1.2.0 手动测试清单](docs/manual-test-v1.2.0.md)
 - [版本记录](CHANGELOG.md)

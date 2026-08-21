@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.2.2 (2026-08-21)
+
+- Delayed LAN gateway startup until the desktop window is visible, so Windows can present its native network-access prompt at a usable time.
+- Documented that users should select private networks only; the application does not create or modify Windows Firewall rules and cannot force the native prompt to show only one profile.
+- Refined the Web layout: the Current Result page is focused on status and output, while screenshot, submit, clear, profile, and paging commands are centralized on Remote Control.
+- Kept all Remote Control buttons visually consistent without a specially emphasized primary command.
+- Updated the English and Chinese release documentation and added the v1.2.2 manual test checklist.
+
 ## 1.2.1 (2026-08-21)
 
 - Changed the default desktop shortcut set to `F1`–`F12` in action order: capture, submit, profile, replay, and App/Web paging or font controls.
