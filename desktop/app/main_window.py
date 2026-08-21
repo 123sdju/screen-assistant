@@ -158,7 +158,12 @@ class MainWindow(QMainWindow):
         self._setup_tray()
         self._load_all_ui()
         self._register_hotkeys()
-        self._start_gateway()
+
+    @Slot()
+    def start_gateway(self) -> None:
+        """Start the LAN gateway after the main window enters the event loop."""
+        if self._gateway is None:
+            self._start_gateway()
 
     def _build_ui(self) -> None:
         root = QWidget()

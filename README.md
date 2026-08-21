@@ -4,7 +4,7 @@
 
 Screen Assistant is a serverless Windows/Linux screenshot assistant with Android and Web LAN companion clients. The desktop client captures and previews screenshots, calls an OpenAI-compatible model directly, stores optional local history, and hosts an embedded authenticated LAN gateway. No PostgreSQL, account service, billing backend, or separately deployed server is required.
 
-Current release: `1.2.1`
+Current release: `1.2.2`
 
 ## Highlights
 
@@ -25,6 +25,7 @@ Current release: `1.2.1`
 - Android and Web clients provide a persistent focus mode that keeps only the current result and essential status visible; opening either client automatically requests an awake screen while it is in the foreground.
 - Model and profile editing from the App; existing API keys are never returned over LAN.
 - A browser client at `/` or `/web` can replace the Android App; pair through the QR link or enter the desktop address manually.
+- The Web current-result page focuses on task status and output; desktop commands are centralized on the Remote page, whose controls use one consistent neutral style.
 
 ## Download and install
 
@@ -45,7 +46,7 @@ Both sides must use the same release version when protocol features change.
 2. Open **Profiles** and configure the system prompt, user prompt, and optional `extra_body`.
 3. Open **LAN & pairing**, generate a six-digit code/QR code, and keep the desktop running.
 4. Connect the phone or computer to the same trusted Wi-Fi. Open the QR link in a browser, or visit `http://<desktop-lan-ip>:18765` (or `/web`) and enter the address/code manually.
-5. Allow `ScreenAssistant.exe` through Windows Firewall on private networks when prompted.
+5. When Screen Assistant starts its LAN gateway, Windows may show its native network-access prompt. Select private networks only and leave public networks unchecked. The app does not create or modify firewall rules, and the Web and Android clients use the same LAN gateway.
 
 `127.0.0.1` and `localhost` on the phone point to the phone itself. Use the desktop's actual LAN IPv4 address, such as `192.168.1.10`.
 
@@ -109,7 +110,7 @@ Build release artifacts:
 ```powershell
 .\scripts\build-desktop.ps1
 .\scripts\build-apk.ps1
-.\scripts\package-release.ps1 -Version 1.2.1
+.\scripts\package-release.ps1 -Version 1.2.2
 ```
 
 On Linux:
@@ -123,7 +124,7 @@ Outputs are intentionally ignored by Git:
 - `desktop/dist/ScreenAssistant.exe`
 - `mobile/build/app/outputs/flutter-apk/app-release.apk`
 - `release/linux/ScreenAssistant-Linux-x86_64.tar.gz`
-- `release/v1.2.1/`
+- `release/v1.2.2/`
 
 ## Documentation
 
@@ -132,6 +133,7 @@ Outputs are intentionally ignored by Git:
 - [LAN protocol](docs/protocol.md)
 - [Web companion](docs/web.md)
 - [Linux desktop](docs/linux.md)
+- [v1.2.2 manual test checklist](docs/manual-test-v1.2.2.md)
 - [v1.2.1 manual test checklist](docs/manual-test-v1.2.1.md)
 - [v1.2.0 manual test checklist](docs/manual-test-v1.2.0.md)
 - [Changelog](CHANGELOG.md)
