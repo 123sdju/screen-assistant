@@ -52,7 +52,7 @@ Android 端仍兼容旧版 JSON 二维码；Web 端打开链接后会自动填�
 {"command":"switch_profile","profile_id":"profile-id"}
 ```
 
-允许的命令：`capture_fullscreen`、`submit_buffer`、`capture_and_submit`、`clear_buffer`、`switch_profile`、`scroll_apps_up`、`scroll_apps_down`。旧版 `scroll_desktop_up`、`scroll_desktop_down` 作为兼容别名保留，但同样只广播 App 翻页，不控制电脑界面。
+允许的命令：`capture_fullscreen`、`capture_multi`、`submit_buffer`、`capture_and_submit`、`clear_buffer`、`switch_profile`、`scroll_apps_up`、`scroll_apps_down`。`capture_multi` 每次追加一张整屏截图到当前缓冲，最多 8 张；旧版 `scroll_desktop_up`、`scroll_desktop_down` 作为兼容别名保留，但同样只广播 App 翻页，不控制电脑界面。
 
 翻页命令产生的 SSE 示例：
 

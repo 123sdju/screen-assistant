@@ -16,6 +16,7 @@ const reasoningEfforts = <String>[
 ];
 const apiModes = <String>['auto', 'chat_completions', 'responses'];
 const urlModes = <String>['auto', 'api_root', 'full_endpoint'];
+const defaultMaxTokens = 8192;
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key, required this.api});
@@ -98,10 +99,13 @@ class _SettingsPageState extends State<SettingsPage> {
     for (final profile in _profiles) {
       if (profile['extra_body_enabled'] != true) continue;
       final extra = profile['extra_body'];
-      if (extra is! Map || !extra.containsKey('reasoning_effort')) continue;
+      if (extra is! Map ||
+          (!extra.containsKey('reasoning_effort') && !extra.containsKey('reasoning'))) {
+        continue;
+      }
       final model = modelsById[profile['model_id']?.toString()];
       if ((model?['reasoning_effort']?.toString() ?? '').isNotEmpty) {
-        return '思考强度与 extra_body 中的 reasoning_effort 重复；'
+        return '思考强度与 extra_body 中的 reasoning_effort/reasoning 重复；'
             '请删除 extra_body 中的该字段，或把模型思考强度设为自动';
       }
     }
@@ -116,7 +120,7 @@ class _SettingsPageState extends State<SettingsPage> {
             'base_url': '',
             'model': '',
             'timeout_seconds': 120,
-            'max_tokens': 2048,
+            'max_tokens': defaultMaxTokens,
             'reasoning_effort': '',
             'api_mode': 'auto',
             'url_mode': 'auto',
@@ -133,7 +137,7 @@ class _SettingsPageState extends State<SettingsPage> {
       text: original['timeout_seconds']?.toString() ?? '120',
     );
     final maxTokens = TextEditingController(
-      text: original['max_tokens']?.toString() ?? '2048',
+      text: original['max_tokens']?.toString() ?? defaultMaxTokens.toString(),
     );
     var reasoningEffort = original['reasoning_effort']?.toString() ?? '';
     if (!reasoningEfforts.contains(reasoningEffort)) reasoningEffort = '';
@@ -233,7 +237,9 @@ class _SettingsPageState extends State<SettingsPage> {
                   TextField(
                     controller: maxTokens,
                     keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(labelText: 'Max Tokens'),
+                    decoration: const InputDecoration(
+                      labelText: 'Max Output Tokens（含思考）',
+                    ),
                   ),
                   DropdownButtonFormField<String>(
                     initialValue: reasoningEffort,
@@ -269,7 +275,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   'api_mode': apiMode,
                   'url_mode': urlMode,
                   'timeout_seconds': int.tryParse(timeout.text) ?? 120,
-                  'max_tokens': int.tryParse(maxTokens.text) ?? 2048,
+                  'max_tokens': int.tryParse(maxTokens.text) ?? defaultMaxTokens,
                   'reasoning_effort': reasoningEffort,
                   'api_key_action': clearKey
                       ? 'clear'

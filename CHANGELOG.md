@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.2.1 (2026-08-21)
+
+- Changed the default desktop shortcut set to `F1`–`F12` in action order: capture, submit, profile, replay, and App/Web paging or font controls.
+- Changed the default maximum output-token setting to `8192` for new or missing model fields while preserving existing explicit values.
+- Added multi-image capture controls to the desktop remote gateway, Android App, and Web companion; each capture appends to the current buffer up to eight images.
+- Improved provider compatibility by preferring modern Chat Completions token fields with fallback, handling optional Responses reasoning summaries, and reporting incomplete or invisible model output as failure.
+- Added Android screen-awake behavior and browser Wake Lock/media fallback, plus clearer manual reconnect behavior after a client stream disconnects.
+- Expanded configuration, gateway, provider, Web, and mobile regression coverage.
+
 ## 1.2.0 (2026-08-20)
 
 - Added an embedded Web companion at `/` and `/web` with QR-link pairing, SSE task streaming, history, remote controls, settings, focus mode, and result font controls.

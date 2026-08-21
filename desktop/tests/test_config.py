@@ -7,6 +7,8 @@ from pathlib import Path
 import pytest
 
 from app.config import (
+    DEFAULT_MAX_TOKENS,
+    DEFAULT_SHORTCUTS,
     ConfigStore,
     normalize_api_mode,
     normalize_base_url,
@@ -27,6 +29,22 @@ def test_config_is_portable_and_preserves_plaintext_key() -> None:
         store.save()
         saved = json.loads(path.read_text(encoding="utf-8"))
         assert saved["models"][0]["api_key"] == "test-key-local"
+
+
+def test_missing_max_tokens_uses_reasoning_safe_default_without_overwriting_explicit_value() -> None:
+    with tempfile.TemporaryDirectory(dir=Path.cwd()) as folder:
+        path = Path(folder) / "config.json"
+        assert ConfigStore(path).data["models"][0]["max_tokens"] == DEFAULT_MAX_TOKENS
+
+        path.write_text(json.dumps({"models": [{"id": "missing"}]}), encoding="utf-8")
+        assert ConfigStore(path).data["models"][0]["max_tokens"] == DEFAULT_MAX_TOKENS
+
+        path.write_text(json.dumps({"models": [{"id": "explicit", "max_tokens": 2048}]}), encoding="utf-8")
+        assert ConfigStore(path).data["models"][0]["max_tokens"] == 2048
+
+
+def test_default_shortcuts_use_f1_through_f12_in_action_order() -> None:
+    assert list(DEFAULT_SHORTCUTS.values()) == [f"F{index}" for index in range(1, 13)]
 
 
 def test_replay_options_are_loaded_and_clamped() -> None:
@@ -93,6 +111,14 @@ def test_reasoning_effort_rejects_duplicate_extra_body_field() -> None:
             "extra_body": {"reasoning_effort": "low"},
         },
     )
+    with pytest.raises(ValueError, match="reasoning"):
+        validate_reasoning_extra_body(
+            {"reasoning_effort": "high"},
+            {
+                "extra_body_enabled": True,
+                "extra_body": {"reasoning": {"effort": "low"}},
+            },
+        )
 
 
 def test_base_url_adds_v1_only_when_no_path_was_supplied() -> None:

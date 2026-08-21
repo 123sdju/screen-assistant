@@ -45,6 +45,7 @@ from PySide6.QtWidgets import (
 from app.ai_provider import OpenAICompatibleProvider
 from app.capture import capture_fullscreen, capture_region, normalize_bbox
 from app.config import (
+    DEFAULT_MAX_TOKENS,
     DEFAULT_SHORTCUTS,
     ConfigStore,
     normalize_base_url,
@@ -76,6 +77,7 @@ else:
 
 COMMANDS = {
     "capture_fullscreen",
+    "capture_multi",
     "submit_buffer",
     "capture_and_submit",
     "clear_buffer",
@@ -85,7 +87,7 @@ COMMANDS = {
     "scroll_apps_up",
     "scroll_apps_down",
 }
-HEAVY_COMMANDS = {"capture_fullscreen", "submit_buffer", "capture_and_submit", "clear_buffer"}
+HEAVY_COMMANDS = {"capture_fullscreen", "capture_multi", "submit_buffer", "capture_and_submit", "clear_buffer"}
 SHORTCUT_ACTIONS = (
     ("capture_fullscreen", "整屏截图"),
     ("capture_multi", "多图截图"),
@@ -314,7 +316,7 @@ class MainWindow(QMainWindow):
             ("URL 模式", self.model_url_mode),
             ("接口格式", self.model_api_mode),
             ("请求总超时（思考 + 输出，秒）", self.model_timeout),
-            ("Max Tokens", self.model_max_tokens),
+            ("Max Output Tokens（含思考）", self.model_max_tokens),
             ("思考强度", self.model_reasoning_effort),
         ):
             form.addRow(label, widget)
@@ -459,8 +461,8 @@ class MainWindow(QMainWindow):
             shortcut_layout.addRow(label, editor)
         shortcut_help = QLabel(
             "点击输入框后按组合键；Backspace/Delete 清空；Esc取消并恢复原值。"
-            "冲突项会立即标红。F3 默认用于“提交当前缓冲”；若要分配给其他功能，"
-            "请先清空原来的 F3。"
+            "冲突项会立即标红。默认快捷键按功能顺序使用 F1-F12；如果要重新分配某个按键，"
+            "请先清空原来的按键。"
         )
         shortcut_help.setWordWrap(True)
         self.shortcut_status = QLabel("保存后立即生效")
@@ -555,7 +557,7 @@ class MainWindow(QMainWindow):
         }
 
     def add_model(self) -> None:
-        self.config.data["models"].append({"id": uuid.uuid4().hex, "name": "新模型", "base_url": "", "api_key": "", "model": "", "timeout_seconds": 120, "max_tokens": 2048, "reasoning_effort": "", "api_mode": "auto", "url_mode": "auto"})
+        self.config.data["models"].append({"id": uuid.uuid4().hex, "name": "新模型", "base_url": "", "api_key": "", "model": "", "timeout_seconds": 120, "max_tokens": DEFAULT_MAX_TOKENS, "reasoning_effort": "", "api_mode": "auto", "url_mode": "auto"})
         self.config.save()
         self._reload_model_list()
         self.model_list.setCurrentRow(len(self.config.data["models"]) - 1)
@@ -1159,6 +1161,8 @@ class MainWindow(QMainWindow):
         try:
             if command == "capture_fullscreen":
                 self.capture_to_buffer(False)
+            elif command == "capture_multi":
+                self.capture_to_buffer(True)
             elif command == "submit_buffer":
                 self.submit_buffer()
             elif command == "capture_and_submit":

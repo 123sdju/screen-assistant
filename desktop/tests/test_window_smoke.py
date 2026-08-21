@@ -8,7 +8,7 @@ from PIL import Image
 from PySide6.QtWidgets import QApplication
 
 from app.config import ConfigStore
-from app.main_window import MainWindow
+from app.main_window import COMMANDS, MainWindow
 
 
 def test_main_window_starts_without_remote_server_or_database() -> None:
@@ -63,6 +63,15 @@ def test_main_window_starts_without_remote_server_or_database() -> None:
                 assert font_event == second_app.get_nowait()
                 assert font_event["event"] == "app_font_scale"
                 assert font_event["delta"] == 0.1
+            assert "capture_multi" in COMMANDS
+            with patch.object(window, "capture_to_buffer") as capture:
+                window._execute_remote_command(
+                    "capture_multi",
+                    None,
+                    "multi-test",
+                    "controller-app",
+                )
+                capture.assert_called_once_with(True)
             window._quitting = True
             window.close()
     app.processEvents()

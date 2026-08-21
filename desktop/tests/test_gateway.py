@@ -60,7 +60,12 @@ def test_pair_auth_bootstrap_and_command_do_not_expose_model_secret() -> None:
         assert "test-key-must-not-leak" not in bootstrap.text
         response = client.post("/v1/commands", headers=headers, json={"command": "capture_fullscreen"})
         assert response.status_code == 202
-        assert commands == [("capture_fullscreen", None, "app-one")]
+        multi_response = client.post("/v1/commands", headers=headers, json={"command": "capture_multi"})
+        assert multi_response.status_code == 202
+        assert commands == [
+            ("capture_fullscreen", None, "app-one"),
+            ("capture_multi", None, "app-one"),
+        ]
         assert client.get("/v1/bootstrap").status_code == 401
 
 
@@ -77,7 +82,9 @@ def test_web_client_is_served_by_the_same_gateway() -> None:
         assert 'href="/web/styles.css"' in home.text
         assert 'src="/web/app.js"' in home.text
         assert 'id="compact-mode-toggle"' in home.text
+        assert 'id="screen-awake-toggle"' not in home.text
         assert 'id="buffer-status"' in home.text
+        assert 'data-command="capture_multi"' in home.text
         assert page.status_code == 200
         assert "Screen Assistant Web" in page.text
         assert stylesheet.status_code == 200
@@ -93,6 +100,9 @@ def test_web_client_is_served_by_the_same_gateway() -> None:
         assert "shouldApplyRemoteViewControl" in script.text
         assert "compactMode" in script.text
         assert "toggleCompactMode" in script.text
+        assert "navigator.wakeLock" in script.text
+        assert "requestScreenWakeLock" in script.text
+        assert "handleWakeLockInteraction" in script.text
 
 
 def test_authenticated_settings_can_be_read_and_updated() -> None:

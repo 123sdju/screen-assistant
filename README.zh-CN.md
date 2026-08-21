@@ -4,7 +4,7 @@
 
 Screen Assistant 是一套不需要独立业务服务器的 Windows/Linux 截图 AI 助手，以及 Android/Web 局域网遥控客户端。桌面客户端负责截图、模型调用、本地历史和局域网网关；Android App 或浏览器 Web 端用于遥控、查看流式结果、修改模型与配置组，以及控制同一电脑下其他客户端的结果翻页。
 
-当前版本：`1.2.0`
+当前版本：`1.2.1`
 
 项目不需要 PostgreSQL、账号系统、计费服务或单独部署的后端。
 
@@ -16,6 +16,7 @@ Screen Assistant 是一套不需要独立业务服务器的 Windows/Linux 截图
 - 每个模型可设置思考强度；选择“自动”时请求不发送该字段。
 - 可选发送 `extra_body` JSON Object，并原样传递给兼容服务。
 - 可录制全局快捷键，实时显示冲突，按 Esc 取消录制。
+- 桌面端默认快捷键按功能顺序使用 `F1`–`F12`，每项都可以重新录制。
 - 按键驱动代码回放，修复编辑器自动缩进叠加，并自动切换英文输入布局。
 - 可选长按快速回放，以固定速度加小幅随机波动连续输出。
 - App 支持 mDNS 自动发现、二维码扫码和手动局域网地址配对。
@@ -25,6 +26,7 @@ Screen Assistant 是一套不需要独立业务服务器的 Windows/Linux 截图
 - 电脑全局快捷键可控制所有当前停留在结果页的在线 App 翻页和调整字体。
 - 一部 App 可控制连接到同一电脑的其他 App 上下翻页。
 - Android App 和浏览器 Web 端都支持可持久化的“专注模式”，只保留当前结果和必要状态。
+- Android App 打开后保持屏幕常亮；Web 端会按浏览器能力申请 Screen Wake Lock 或兼容媒体保活。
 - App 可新增、编辑、删除模型连接和任务配置组。
 - 已有 API Key 不会通过局域网回显，App 只能保持、替换或清除。
 - 可在浏览器打开 `http://<电脑局域网IP>:18765` 或 `/web`，使用二维码链接或手动地址连接，不必安装 Android App。
@@ -118,7 +120,7 @@ cd screen-assistant
 ```powershell
 .\scripts\build-desktop.ps1
 .\scripts\build-apk.ps1
-.\scripts\package-release.ps1 -Version 1.2.0
+.\scripts\package-release.ps1 -Version 1.2.1
 ```
 
 Linux 下执行：
@@ -132,7 +134,7 @@ bash scripts/build-linux.sh
 - `desktop/dist/ScreenAssistant.exe`
 - `mobile/build/app/outputs/flutter-apk/app-release.apk`
 - `release/linux/ScreenAssistant-Linux-x86_64.tar.gz`
-- `release/v1.2.0/`
+- `release/v1.2.1/`
 
 ## 文档
 
@@ -141,6 +143,7 @@ bash scripts/build-linux.sh
 - [局域网协议](docs/protocol.md)
 - [Web 端说明](docs/web.md)
 - [Linux 桌面版](docs/linux.md)
+- [v1.2.1 手动测试清单](docs/manual-test-v1.2.1.md)
 - [v1.2.0 手动测试清单](docs/manual-test-v1.2.0.md)
 - [版本记录](CHANGELOG.md)
 

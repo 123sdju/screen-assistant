@@ -4,7 +4,7 @@
 
 Screen Assistant is a serverless Windows/Linux screenshot assistant with Android and Web LAN companion clients. The desktop client captures and previews screenshots, calls an OpenAI-compatible model directly, stores optional local history, and hosts an embedded authenticated LAN gateway. No PostgreSQL, account service, billing backend, or separately deployed server is required.
 
-Current release: `1.2.0`
+Current release: `1.2.1`
 
 ## Highlights
 
@@ -14,6 +14,7 @@ Current release: `1.2.0`
 - Per-model reasoning effort with automatic omission or standard reasoning levels.
 - Optional `extra_body` JSON passed unchanged to compatible providers.
 - Configurable global shortcuts with conflict detection and Esc cancellation.
+- The default desktop shortcut set uses `F1`–`F12` in action order and can be re-recorded per action.
 - Key-driven code replay with exact indentation, forced English input mode, and optional human-like hold repeat.
 - Android pairing through mDNS discovery, QR code, or manual LAN address.
 - SSE streaming for thinking, results, task state, profiles, and buffer changes.
@@ -21,7 +22,7 @@ Current release: `1.2.0`
 - Full-width, soft-wrapped Markdown code blocks in portrait and landscape, without horizontal reading scroll.
 - Desktop shortcuts can page and resize text on every connected App currently showing the result page.
 - One App can page results on other Apps connected to the same desktop.
-- Android and Web clients provide a persistent focus mode that keeps only the current result and essential status visible.
+- Android and Web clients provide a persistent focus mode that keeps only the current result and essential status visible; opening either client automatically requests an awake screen while it is in the foreground.
 - Model and profile editing from the App; existing API keys are never returned over LAN.
 - A browser client at `/` or `/web` can replace the Android App; pair through the QR link or enter the desktop address manually.
 
@@ -108,7 +109,7 @@ Build release artifacts:
 ```powershell
 .\scripts\build-desktop.ps1
 .\scripts\build-apk.ps1
-.\scripts\package-release.ps1 -Version 1.2.0
+.\scripts\package-release.ps1 -Version 1.2.1
 ```
 
 On Linux:
@@ -122,7 +123,7 @@ Outputs are intentionally ignored by Git:
 - `desktop/dist/ScreenAssistant.exe`
 - `mobile/build/app/outputs/flutter-apk/app-release.apk`
 - `release/linux/ScreenAssistant-Linux-x86_64.tar.gz`
-- `release/v1.2.0/`
+- `release/v1.2.1/`
 
 ## Documentation
 
@@ -131,6 +132,7 @@ Outputs are intentionally ignored by Git:
 - [LAN protocol](docs/protocol.md)
 - [Web companion](docs/web.md)
 - [Linux desktop](docs/linux.md)
+- [v1.2.1 manual test checklist](docs/manual-test-v1.2.1.md)
 - [v1.2.0 manual test checklist](docs/manual-test-v1.2.0.md)
 - [Changelog](CHANGELOG.md)
 

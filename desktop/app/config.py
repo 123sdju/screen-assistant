@@ -23,23 +23,24 @@ APP_DIR = executable_dir()
 CONFIG_PATH = Path(os.getenv("SCREEN_ASSISTANT_CONFIG", str(APP_DIR / "config.json")))
 
 DEFAULT_SHORTCUTS = {
-    "capture_fullscreen": "F2",
-    "submit_buffer": "F3",
-    "next_profile": "F4",
-    "capture_multi": "F5",
-    "capture_region": "F6",
-    "capture_and_submit": "Ctrl+F3",
-    "clear_buffer": "Ctrl+F5",
+    "capture_fullscreen": "F1",
+    "capture_multi": "F2",
+    "capture_region": "F3",
+    "submit_buffer": "F4",
+    "capture_and_submit": "F5",
+    "clear_buffer": "F6",
+    "next_profile": "F7",
     "replay_result": "F8",
-    "scroll_apps_up": "Ctrl+Alt+PageUp",
-    "scroll_apps_down": "Ctrl+Alt+PageDown",
-    "increase_app_font": "Ctrl+Alt+Plus",
-    "decrease_app_font": "Ctrl+Alt+Minus",
+    "scroll_apps_up": "F9",
+    "scroll_apps_down": "F10",
+    "increase_app_font": "F11",
+    "decrease_app_font": "F12",
 }
 
 REASONING_EFFORTS = {"", "none", "minimal", "low", "medium", "high", "xhigh", "max"}
 API_MODES = {"auto", "chat_completions", "responses"}
 URL_MODES = {"auto", "api_root", "full_endpoint"}
+DEFAULT_MAX_TOKENS = 8192
 
 
 def normalize_base_url(value: Any) -> str:
@@ -91,7 +92,7 @@ def default_config() -> dict[str, Any]:
                 "api_key": "",
                 "model": "",
                 "timeout_seconds": 120,
-                "max_tokens": 2048,
+                "max_tokens": DEFAULT_MAX_TOKENS,
                 "reasoning_effort": "",
                 "api_mode": "auto",
                 "url_mode": "auto",
@@ -221,9 +222,19 @@ def validate_reasoning_extra_body(
 ) -> None:
     effort = normalize_reasoning_effort(model.get("reasoning_effort"))
     extra_body = parse_extra_body(profile)
-    if effort and extra_body is not None and "reasoning_effort" in extra_body:
+    if not effort or extra_body is None:
+        return
+    conflicts: list[str] = []
+    if "reasoning_effort" in extra_body:
+        conflicts.append("reasoning_effort")
+    # Responses uses a nested `reasoning` object. Passing it through
+    # extra_body would replace the standard object assembled from the model
+    # setting, so it must be treated as the same duplicate configuration.
+    if "reasoning" in extra_body:
+        conflicts.append("reasoning")
+    if conflicts:
         raise ValueError(
-            "思考强度与 extra_body 中的 reasoning_effort 重复；"
+            f"思考强度与 extra_body 中的 {', '.join(conflicts)} 重复；"
             "请删除 extra_body 中的该字段，或把模型思考强度设为自动"
         )
 
@@ -293,7 +304,7 @@ def normalize_remote_settings(
                 "api_key": api_key,
                 "model": str(raw.get("model") or "").strip(),
                 "timeout_seconds": max(5, min(int(raw.get("timeout_seconds") or 120), 600)),
-                "max_tokens": max(1, min(int(raw.get("max_tokens") or 2048), 131072)),
+                "max_tokens": max(1, min(int(raw.get("max_tokens") or DEFAULT_MAX_TOKENS), 131072)),
                 "reasoning_effort": normalize_reasoning_effort(raw.get("reasoning_effort")),
                 "api_mode": normalize_api_mode(raw.get("api_mode")),
                 "url_mode": normalize_url_mode(raw.get("url_mode")),
@@ -362,7 +373,7 @@ def _sanitize_models(raw: Any, fallback: list[dict[str, Any]]) -> list[dict[str,
                 "api_key": str(item.get("api_key") or ""),
                 "model": str(item.get("model") or ""),
                 "timeout_seconds": max(5, min(int(item.get("timeout_seconds") or 120), 600)),
-                "max_tokens": max(1, min(int(item.get("max_tokens") or 2048), 131072)),
+                "max_tokens": max(1, min(int(item.get("max_tokens") or DEFAULT_MAX_TOKENS), 131072)),
                 "reasoning_effort": _sanitize_reasoning_effort(item.get("reasoning_effort")),
                 "api_mode": _sanitize_api_mode(item.get("api_mode")),
                 "url_mode": _sanitize_url_mode(item.get("url_mode")),

@@ -1,6 +1,8 @@
 (() => {
   'use strict';
 
+  const DEFAULT_MAX_TOKENS = 8192;
+
   const STORAGE = {
     baseUrl: 'screen-assistant.web.base-url',
     token: 'screen-assistant.web.token',
@@ -17,6 +19,7 @@
     deviceName: 'Screen Assistant Web',
     fontScale: 1,
     compactMode: false,
+    wakeLock: null,
     connected: false,
     eventStreamStarted: false,
     eventStreamConnected: false,
@@ -48,6 +51,7 @@
     const qrConnection = applyUrlParameters();
     applyFontScale();
     applyCompactMode();
+    void requestScreenWakeLock();
     renderConnectionView();
     if (qrConnection) {
       setConnectionStatus('已读取二维码，正在自动配对...');
@@ -85,6 +89,10 @@
     $('#font-decrease').addEventListener('click', () => changeFontScale(-0.1));
     $('#font-increase').addEventListener('click', () => changeFontScale(0.1));
     $('#compact-mode-toggle').addEventListener('click', toggleCompactMode);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    document.addEventListener('pointerdown', handleWakeLockInteraction, { passive: true });
+    document.addEventListener('keydown', handleWakeLockInteraction);
+    window.addEventListener('pagehide', () => { void releaseScreenWakeLock(); });
 
     document.addEventListener('click', (event) => {
       const target = event.target.closest('button');
@@ -643,7 +651,7 @@
   function openModelEditor(index = null) {
     const current = index === null ? {
       id: `model-${Date.now()}`,
-      name: '新模型', base_url: '', model: '', timeout_seconds: 120, max_tokens: 2048,
+      name: '新模型', base_url: '', model: '', timeout_seconds: 120, max_tokens: DEFAULT_MAX_TOKENS,
       reasoning_effort: '', api_mode: 'auto', url_mode: 'auto', api_key_configured: false, api_key_action: 'replace',
     } : { ...state.settings.models[index] };
     const dialog = $('#editor-dialog');
@@ -659,7 +667,7 @@
           <label><span>URL 模式</span><select name="url_mode">${urlModeOptions(current.url_mode)}</select></label>
           <label><span>接口格式</span><select name="api_mode">${apiModeOptions(current.api_mode)}</select></label>
           <label><span>请求总超时（秒）</span><input name="timeout_seconds" type="number" min="5" max="600" value="${Number(current.timeout_seconds || 120)}" /></label>
-          <label><span>Max Tokens</span><input name="max_tokens" type="number" min="1" max="131072" value="${Number(current.max_tokens || 2048)}" /></label>
+          <label><span>Max Output Tokens（含思考）</span><input name="max_tokens" type="number" min="1" max="131072" value="${Number(current.max_tokens || DEFAULT_MAX_TOKENS)}" /></label>
           <label class="full"><span>思考强度</span><select name="reasoning_effort">${reasoningOptions(current.reasoning_effort)}</select></label>
         </div>
         <div class="dialog-actions"><button class="secondary-button" type="button" data-dialog-cancel>取消</button><button class="primary-button" type="submit">确定</button></div>
@@ -678,7 +686,7 @@
         base_url: String(form.get('base_url') || '').trim(),
         model: String(form.get('model') || '').trim(),
         timeout_seconds: Number(form.get('timeout_seconds') || 120),
-        max_tokens: Number(form.get('max_tokens') || 2048),
+        max_tokens: Number(form.get('max_tokens') || DEFAULT_MAX_TOKENS),
         reasoning_effort: String(form.get('reasoning_effort') || ''),
         api_mode: String(form.get('api_mode') || 'auto'),
         url_mode: String(form.get('url_mode') || 'auto'),
@@ -818,6 +826,78 @@
     button.setAttribute('aria-pressed', String(state.compactMode));
     button.textContent = state.compactMode ? '完整' : '专注';
     button.title = state.compactMode ? '恢复完整页面' : '只显示当前结果和必要状态';
+  }
+
+  async function requestScreenWakeLock(notify = false) {
+    if (state.wakeLock || document.visibilityState !== 'visible') return Boolean(state.wakeLock);
+    if (window.isSecureContext && 'wakeLock' in navigator) {
+      try {
+        const lock = await navigator.wakeLock.request('screen');
+        state.wakeLock = lock;
+        lock.addEventListener('release', () => {
+          if (state.wakeLock === lock) {
+            state.wakeLock = null;
+          }
+        });
+        return true;
+      } catch (_) {
+        // Fall through to the media fallback; some browsers expose Wake Lock
+        // but reject it when the page is not the active tab.
+      }
+    }
+    const fallback = await requestMediaWakeFallback();
+    if (!fallback && notify) {
+      showToast('当前浏览器不支持网页常亮；请使用 HTTPS/localhost 或兼容媒体保活的浏览器', true);
+    }
+    return fallback;
+  }
+
+  async function requestMediaWakeFallback() {
+    if (!window.HTMLCanvasElement || !HTMLCanvasElement.prototype.captureStream || state.wakeLock) {
+      return Boolean(state.wakeLock);
+    }
+    const canvas = document.createElement('canvas');
+    canvas.width = 1;
+    canvas.height = 1;
+    const stream = canvas.captureStream(1);
+    const video = document.createElement('video');
+    video.muted = true;
+    video.playsInline = true;
+    video.setAttribute('aria-hidden', 'true');
+    video.style.cssText = 'position:fixed;width:1px;height:1px;opacity:0;pointer-events:none;';
+    video.srcObject = stream;
+    document.body.appendChild(video);
+    try {
+      await video.play();
+      state.wakeLock = {
+        release: async () => {
+          video.pause();
+          stream.getTracks().forEach((track) => track.stop());
+          video.remove();
+        },
+      };
+      return true;
+    } catch (_) {
+      stream.getTracks().forEach((track) => track.stop());
+      video.remove();
+      return false;
+    }
+  }
+
+  async function releaseScreenWakeLock() {
+    const lock = state.wakeLock;
+    state.wakeLock = null;
+    if (lock) await lock.release().catch(() => {});
+  }
+
+  function handleVisibilityChange() {
+    if (document.visibilityState === 'visible' && !state.wakeLock) void requestScreenWakeLock();
+  }
+
+  function handleWakeLockInteraction() {
+    if (document.visibilityState === 'visible' && !state.wakeLock) {
+      void requestScreenWakeLock();
+    }
   }
 
   function forgetDesktop() {

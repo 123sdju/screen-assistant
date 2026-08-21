@@ -1,6 +1,6 @@
 # Screen Assistant Android App
 
-Flutter companion App for the Screen Assistant desktop client. It discovers and pairs with a desktop over the local network, receives task streams over SSE, controls screenshots and profiles, synchronizes result paging across paired Apps, and edits desktop model/profile settings without reading existing API keys. The desktop also provides a browser Web companion at `/` and `/web`; both clients share the same pairing, focus mode, result font controls, and remote-event behavior.
+Flutter companion App for the Screen Assistant desktop client. It discovers and pairs with a desktop over the local network, receives task streams over SSE, controls screenshots and profiles, supports multi-image capture, keeps the Android screen awake while open, synchronizes result paging across paired Apps, and edits desktop model/profile settings without reading existing API keys. The desktop also provides a browser Web companion at `/` and `/web`; both clients share the same pairing, focus mode, result font controls, and remote-event behavior.
 
 From the repository root:
 

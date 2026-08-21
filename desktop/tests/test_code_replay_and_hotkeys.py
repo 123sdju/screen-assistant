@@ -84,13 +84,13 @@ def test_validates_and_canonicalizes_shortcuts() -> None:
     }
 
 
-def test_app_control_shortcuts_support_page_and_oem_plus_minus_keys() -> None:
+def test_default_app_control_shortcuts_use_function_keys() -> None:
     normalized, errors = validate_shortcuts(DEFAULT_SHORTCUTS)
     assert errors == {}
-    assert normalized["scroll_apps_up"] == "Ctrl+Alt+PageUp"
-    assert normalized["scroll_apps_down"] == "Ctrl+Alt+PageDown"
-    assert normalized["increase_app_font"] == "Ctrl+Alt+Plus"
-    assert normalized["decrease_app_font"] == "Ctrl+Alt+Minus"
+    assert normalized["scroll_apps_up"] == "F9"
+    assert normalized["scroll_apps_down"] == "F10"
+    assert normalized["increase_app_font"] == "F11"
+    assert normalized["decrease_app_font"] == "F12"
     plus = parse_native_shortcut("font", "Ctrl+Alt+Plus")
     assert plus is not None
     assert plus.key_code == 0xBB

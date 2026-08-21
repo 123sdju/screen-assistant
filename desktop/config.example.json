@@ -17,6 +17,20 @@
   "storage": {
     "history_dir": ""
   },
+  "shortcuts": {
+    "capture_fullscreen": "F1",
+    "capture_multi": "F2",
+    "capture_region": "F3",
+    "submit_buffer": "F4",
+    "capture_and_submit": "F5",
+    "clear_buffer": "F6",
+    "next_profile": "F7",
+    "replay_result": "F8",
+    "scroll_apps_up": "F9",
+    "scroll_apps_down": "F10",
+    "increase_app_font": "F11",
+    "decrease_app_font": "F12"
+  },
   "models": [
     {
       "id": "replace-with-unique-id",
@@ -27,7 +41,7 @@
       "api_mode": "auto",
       "url_mode": "auto",
       "timeout_seconds": 120,
-      "max_tokens": 2048,
+      "max_tokens": 8192,
       "reasoning_effort": ""
     }
   ],

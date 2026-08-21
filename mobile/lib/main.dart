@@ -209,9 +209,7 @@ class AppShell extends StatefulWidget {
 }
 
 class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
-  final _urlController = TextEditingController(
-    text: '',
-  );
+  final _urlController = TextEditingController(text: '');
   final _codeController = TextEditingController();
   final _nameController = TextEditingController(text: 'Screen Assistant App');
   final _discovery = DesktopDiscovery();
@@ -227,7 +225,8 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
   bool _focusMode = false;
   LanApiClient? _api;
   int _streamGeneration = 0;
-  Timer? _reconnectTimer;
+  bool _automaticReconnectStopped = false;
+  bool _connectionInFlight = false;
   Map<String, dynamic> _desktop = const {};
   List<Map<String, dynamic>> _profiles = const [];
   List<Map<String, dynamic>> _tasks = const [];
@@ -271,7 +270,12 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed && _token.isNotEmpty && !_pairing) {
+    if (state == AppLifecycleState.resumed &&
+        _token.isNotEmpty &&
+        !_pairing &&
+        _api == null &&
+        !_connectionInFlight &&
+        !_automaticReconnectStopped) {
       _connectSaved();
     }
   }
@@ -357,6 +361,7 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
       return;
     }
     if (_pairing) return;
+    _automaticReconnectStopped = false;
     final generation = _invalidateConnection();
     _baseUrl = url;
     _token = '';
@@ -392,7 +397,7 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
         _loading = true;
         _status = '正在连接电脑...';
       });
-      await _connectSaved();
+      await _connectSaved(manual: true);
     } catch (error) {
       if (mounted && generation == _streamGeneration) {
         setState(() {
@@ -411,8 +416,6 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
 
   int _invalidateConnection() {
     _streamGeneration++;
-    _reconnectTimer?.cancel();
-    _reconnectTimer = null;
     final api = _api;
     _api = null;
     api?.close();
@@ -420,13 +423,16 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
   }
 
   bool _isCurrentConnection(int generation, LanApiClient api) {
-    return mounted &&
-        generation == _streamGeneration &&
-        identical(_api, api);
+    return mounted && generation == _streamGeneration && identical(_api, api);
   }
 
-  Future<void> _connectSaved() async {
-    if (_pairing) return;
+  Future<void> _connectSaved({bool manual = false}) async {
+    if (_pairing || _connectionInFlight) return;
+    if (manual) {
+      _automaticReconnectStopped = false;
+    } else if (_automaticReconnectStopped) {
+      return;
+    }
     final baseUrl = _baseUrl;
     final token = _token;
     if (baseUrl.isEmpty || token.isEmpty) {
@@ -439,6 +445,7 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
       }
       return;
     }
+    _connectionInFlight = true;
     final generation = _invalidateConnection();
     final api = LanApiClient(baseUrl: baseUrl, token: token);
     _api = api;
@@ -455,18 +462,16 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
         return;
       }
       _applyBootstrap(data);
+      _automaticReconnectStopped = false;
       setState(() {
         _connected = true;
         _loading = false;
         _status = '已连接';
       });
       unawaited(
-        api.streamEvents(
-          (event) {
-            if (_isCurrentConnection(generation, api)) _handleEvent(event);
-          },
-          (error) => _handleStreamError(generation, api, error),
-        ),
+        api.streamEvents((event) {
+          if (_isCurrentConnection(generation, api)) _handleEvent(event);
+        }, (error) => _handleStreamError(generation, api, error)),
       );
     } catch (error) {
       if (!_isCurrentConnection(generation, api)) {
@@ -481,10 +486,12 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
         _status = '连接失败：$error';
       });
       if (shouldRetryLanConnection(error)) {
-        _scheduleReconnect(generation);
+        _stopAutomaticReconnect('连接失败，请手动连接');
       } else {
         await _clearInvalidToken(generation);
       }
+    } finally {
+      _connectionInFlight = false;
     }
   }
 
@@ -507,9 +514,9 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
     setState(() {
       _connected = false;
       _loading = false;
-      _status = '连接断开，正在重连...';
+      _status = '连接已断开，请手动连接';
     });
-    _scheduleReconnect(generation);
+    _automaticReconnectStopped = true;
   }
 
   Future<void> _clearInvalidToken(int generation) async {
@@ -528,13 +535,13 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
     });
   }
 
-  void _scheduleReconnect(int generation) {
-    if (!mounted || generation != _streamGeneration || _pairing) return;
-    _reconnectTimer?.cancel();
-    _reconnectTimer = Timer(const Duration(seconds: 3), () {
-      _reconnectTimer = null;
-      if (!mounted || generation != _streamGeneration || _pairing) return;
-      _connectSaved();
+  void _stopAutomaticReconnect(String message) {
+    _automaticReconnectStopped = true;
+    if (!mounted) return;
+    setState(() {
+      _connected = false;
+      _loading = false;
+      _status = message;
     });
   }
 
@@ -949,7 +956,10 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
           _fontAction(),
           _focusAction(),
           if (!_focusMode) ...[
-            IconButton(onPressed: _connectSaved, icon: const Icon(Icons.refresh)),
+            IconButton(
+              onPressed: () => _connectSaved(manual: true),
+              icon: const Icon(Icons.refresh),
+            ),
             PopupMenuButton<String>(
               onSelected: (value) {
                 if (value == 'forget') _forgetDesktop();
@@ -995,8 +1005,7 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
               ],
             )
           : pageBody,
-      bottomNavigationBar: wide
-          || _focusMode
+      bottomNavigationBar: wide || _focusMode
           ? null
           : NavigationBar(
               selectedIndex: _tabIndex,
@@ -1098,6 +1107,7 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
             '整屏截图',
             'capture_fullscreen',
           ),
+          _commandButton(Icons.collections, '多图截图', 'capture_multi'),
           _commandButton(Icons.upload, '提交当前缓冲', 'submit_buffer'),
           _commandButton(Icons.bolt, '截图并立即提交', 'capture_and_submit'),
           _commandButton(Icons.delete_sweep, '清空截图缓冲', 'clear_buffer'),
@@ -1148,7 +1158,7 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
             ),
             const SizedBox(height: 8),
             Text(
-              '翻页命令经电脑广播；只有当前停留在结果页的 Screen Assistant App 会同步滚动。',
+              '多图截图会追加到当前缓冲，最多 8 张；翻页命令经电脑广播，只有当前停留在结果页的 Screen Assistant App 会同步滚动。',
               style: Theme.of(context).textTheme.bodySmall,
             ),
           ],
@@ -1172,7 +1182,7 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
   Widget _historyPage() {
     if (_tasks.isEmpty) return const Center(child: Text('本地电脑没有已保存的文本历史'));
     return RefreshIndicator(
-      onRefresh: _connectSaved,
+      onRefresh: () => _connectSaved(manual: true),
       child: ListView.builder(
         padding: const EdgeInsets.all(12),
         itemCount: _tasks.length,
